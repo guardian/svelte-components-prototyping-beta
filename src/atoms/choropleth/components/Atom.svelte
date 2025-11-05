@@ -6,7 +6,7 @@
   import Logger from './Logger.svelte';
   import Resizer from './Resizer.svelte';
 
-  // Data for the maps.
+  // Data for the maps. This could come from a google sheet or a json file.
   let data = $state([]);
 
   let { name = '' } = $props();
@@ -27,7 +27,6 @@
   <Logger testing={false} />
 
   {#if data.length > 0}
-
 
     <Choropleth 
       {data}
