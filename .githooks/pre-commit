@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# Enforce ESLint rules and Prettier formatting (uncomment next line to enable)
+# npx lint-staged

@@ -1,0 +1,20 @@
+@import "@guardian/source/foundations/typography.css";
+@import "@guardian/source/foundations/palette.css";
+
+@import "$lib/styles/mq.scss";
+@import "$lib/styles/defaults.scss";
+@import "$lib/styles/layout.scss";
+@import "$lib/styles/_colors.scss";
+@import "./charts.scss";
+
+body {
+  @include light-mode-colors;
+
+  // dark-mode styles eg:
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-color-scheme="light"]) body {
+    @include dark-mode-colors;
+  }
+}

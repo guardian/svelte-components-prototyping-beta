@@ -1,0 +1,77 @@
+// from visuals colour guide: https://www.figma.com/file/RZHnmwc2tmB6j1k4bNtyND/Style-Guide?type=design&node-id=1124%3A325&mode=design&t=bRPBxmJ7FZ5Wlk0R-1
+
+@mixin light-mode-colors {
+  --primary-text-color: #121212;
+  --secondary-text-color: #707070;
+  --tertiary-text-color: #707070; // same in light mode / differentiated in dark mode
+
+  --primary-bg-color: #ffffff;
+  --secondary-bg-color: #f3f3f3;
+  --tertiary-bg-color: #f6f6f6;
+
+  --primary-line-color: #333333;
+  --secondary-line-color: #dcdcdc;
+  --border-divider-color: #dcdcdc;
+  --axis-color: #bababa;
+
+  --primary-button-color: #121212;
+  --primary-button-text-color: #ffffff;
+  --primary-button-highlight-color: #333333;
+
+  --highlight-color: #ffe500;
+  --highlighted-text-color: #121212;
+
+  --info-color: #00b2ff;
+
+  --news-grey-01: #121212; // Furniture
+  --news-grey-02: #707070; // Furniture
+  --news-grey-03: #a1a1a1; // Categorical
+  --news-grey-04: #bababa; // Axis lines
+  --news-grey-05: #dcdcdc; // Structure
+  --news-grey-06: #f3f3f3; // Structure
+
+  --news-core-01: #005689;
+  --news-core-02: #0094da;
+  --news-core-03: #c70000;
+  --news-core-04: #23b4a9;
+  --news-core-05: #494949;
+  --news-core-06: #cca36e;
+}
+
+@mixin dark-mode-colors {
+  --primary-text-color: #dcdcdc;
+  --secondary-text-color: #c8c8c8;
+  --tertiary-text-color: #999999;
+
+  --primary-bg-color: #1a1a1a;
+  --secondary-bg-color: #383838;
+  --tertiary-bg-color: #121212;
+
+  --primary-line-color: #dcdcdc;
+  --secondary-line-color: #707070;
+  --border-divider-color: #606060;
+  --axis-color: var(--news-grey-04);
+
+  --primary-button-color: #383838;
+  --primary-button-text-color: #dcdcdc;
+  --primary-button-highlight-color: #707070;
+
+  --highlight-color: #cda500;
+  --highlighted-text-color: #121212;
+
+  --info-color: #0077b6;
+
+  --news-grey-01: #dcdcdc; // Furniture
+  --news-grey-02: #c8c8c8; // Furniture
+  --news-grey-03: #a1a1a1; // Categorical
+  --news-grey-04: #707070; // Axis lines
+  --news-grey-05: #494949; // Structure
+  --news-grey-06: #383838; // Structure
+
+  --news-core-01: #0077b6;
+  --news-core-02: #00b2ff;
+  --news-core-03: #e33824;
+  --news-core-04: #23b4a9;
+  --news-core-05: #494949;
+  --news-core-06: #cca36e;
+}

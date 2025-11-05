@@ -1,0 +1,58 @@
+{
+  "name": "svelte-atom-template",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "postinstall": "git config core.hooksPath .githooks",
+    "build": "node scripts/build.js",
+    "dev": "vite",
+    "lint": "eslint .",
+    "format": "prettier . --check",
+    "start": "vite"
+  },
+  "devDependencies": {
+    "@guardian/browserslist-config": "^6.1.0",
+    "@preact/preset-vite": "^2.8.1",
+    "@rollup/plugin-replace": "^5.0.5",
+    "@sveltejs/vite-plugin-svelte": "^4.0.4",
+    "autoprefixer": "^10.4.17",
+    "aws-sdk": "^2.1272.0",
+    "es-main": "^1.2.0",
+    "eslint": "^9.8.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.35.0",
+    "eslint-plugin-react-hooks": "^5.1.0-beta-26f2496093-20240514",
+    "eslint-plugin-svelte": "^3.10.1",
+    "globals": "^15.8.0",
+    "lint-staged": "^15.2.7",
+    "lodash": "^4.17.21",
+    "mime-types": "^2.1.35",
+    "ora": "^6.1.2",
+    "postcss": "^8.4.31",
+    "preact-render-to-string": "^6.0.2",
+    "prettier": "^3.3.3",
+    "prettier-plugin-svelte": "^3.4.0",
+    "rollup": "^2.3.4",
+    "sass": "^1.51.0",
+    "sass-mq": "^6.0.0",
+    "svelte": "^5.35.1",
+    "vite": "^5.1.7",
+    "vite-plugin-inspect": "^0.8.3",
+    "vite-plugin-static-copy": "^1.0.1"
+  },
+  "dependencies": {
+    "@fullhuman/postcss-purgecss": "^7.0.2",
+    "@guardian/interactive-component-library": "0.1.0-alpha.20",
+    "@guardian/source": "^0.0.0-canary-20251017113830",
+    "@sveltejs/svelte-scroller": "^2.0.7",
+    "preact": "^10.19.6"
+  },
+  "browserslist": [
+    "extends @guardian/browserslist-config"
+  ],
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,svelte}": "eslint --cache --fix",
+    "*.{js,jsx,ts,tsx,svelte,css,scss,html,json}": "prettier --write"
+  }
+}

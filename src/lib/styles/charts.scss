@@ -1,0 +1,246 @@
+@import "$lib/styles/_colors.scss";
+
+.atom {
+
+	border-top: 1px solid var(--border-divider-color);
+    padding-top: 20px;
+    padding-bottom: 20px;
+    max-width:1200px; 
+
+    .line {
+        fill: none;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+        stroke-width: 2px;
+    }
+
+    .outline {
+        fill: none;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+        stroke: white;
+        stroke-width: 4px;
+        pointer-events: stroke;
+    }
+
+    #graphicContainer {
+    	position: relative;
+    }
+
+	.furniture {
+		padding-left:5px;
+		padding-right:5px;
+	}
+
+	.tick path,
+	.tick line {
+	  fill: none;
+	  stroke: #767676;
+	  shape-rendering: crispEdges;
+	}
+
+    .tick text {
+        font-size: 13px;
+        fill:#707070; 
+    }
+
+    .tick .grid-line {
+        stroke:#BABABA;
+        stroke-width:0.75px;
+    }
+
+	.base-line {
+		stroke:var(--primary-text-color);
+		stroke-width:0.75px;
+	}
+
+	.selectContainer {
+		display: inline-block;
+		margin-right: 10px;
+	}
+
+	.hide {
+		display: none;
+	}
+
+	.keyLabel {
+            fill:  var(--secondary-text-color);
+			color:#000;
+        }
+
+	.lineLabels {
+		font-weight: bold;
+		font-size:1.2em;
+	}
+
+	.selectLabel {
+		font-size:14px;
+        color: #767676;
+        font-family:'Guardian Text Sans Web', 'Agate Sans', sans-serif;
+        padding-bottom: 5px;
+	}
+
+    #loadingContainer {
+        text-align: center;
+        width:auto;
+        margin-left:5px;        
+        border-radius: 16px;
+        text-align: center;
+        padding: 5px 10px;
+        font-size: 16px;
+        color:#FFFFFF;
+        background-color: #bdbdbd;
+        display: inline-block;
+        position: absolute;
+        left:49%;
+        top:20%;
+    }
+
+	#figureTitle {
+		font-size: 20px;
+	    line-height: 28px;
+	    font-weight: 500;
+	    -webkit-font-smoothing: antialiased;
+	    color: var(--primary-text-color);
+	    font-family: "Guardian Headline Full", Georgia, serif;
+	    margin-bottom: 16px;
+	}
+
+    // Unecessary for atoms, required for iframes
+
+	a {
+		color:var(--news-core-03);
+		text-decoration: none !important;
+		border-bottom: 0.0625rem solid var(--secondary-line-color);
+		-webkit-transition: border-color 0.15s ease-out;
+		transition: border-color 0.15s ease-out;
+	}
+
+	a:hover {
+		border-color:var(--news-core-03);
+	}
+
+	#subTitle {
+		font-size: 15px;
+	    line-height: 20px;
+	    color: var(--primary-text-color);
+	    font-family:'Guardian Text Sans Web', 'Agate Sans', sans-serif;
+	    margin-bottom: 10px;
+	}
+
+	#chartControls {
+		font-size: 15px;
+	    line-height: 20px;
+	    color: #121212;
+	    font-family:'Guardian Text Sans Web', 'Agate Sans', sans-serif;
+	    margin-bottom: 10px;
+
+		.row {
+			margin-bottom: 10px;
+		}
+	}
+
+	.annotation {
+		font-size: 13px;
+	    color: #121212;
+	    font-family:'Guardian Text Sans Web', 'Agate Sans', sans-serif;
+	}
+
+	.chartMultiTitle {
+		font-size:14px;
+		color:#000;
+		font-family:'Guardian Text Sans Web', 'Agate Sans', sans-serif;
+	}
+
+	#footer {
+		margin-top:5px;
+		font-size: 12px;
+		line-height: 16px;
+		color: #999999;
+        font-family:'Guardian Text Sans Web', 'Agate Sans', sans-serif;
+	}
+
+	.chart {
+		font-size:13px;
+		color:#707070;
+		font-family:'Guardian Text Sans Web', 'Agate Sans', sans-serif;
+	}
+
+	.annotationBox {
+		font-size: 1.2em;
+		font-weight: bold;
+	    color: #333333;
+	    font-family: "Guardian Egyptian Web", Georgia, serif;
+	}
+
+	.keyText {
+		font-size:13px;
+		margin-left:4px;
+        font-family:'Guardian Text Sans Web', 'Agate Sans', sans-serif;
+        color:#707070;
+	}
+
+	#chartKey div {
+		margin-left:10px;
+	}
+
+	#chartKey div:first-child {
+		margin-left: 0px;
+	}
+
+	.keyDiv {
+		display: inline-block;
+	}
+
+	.keyDiv .keyCircle:first-of-type {
+	    margin-left:0;
+	}
+
+	.keyCircle {
+		width:12px;
+		height:12px;
+		border-radius: 50%;
+		display: inline-block;
+	}
+
+    .keySquare {
+		width:10px;
+		height:10px;
+		display: inline-block;
+	}
+
+	.annotationTextMobile {
+		font-weight:bold;
+	}
+
+	#footerAnnotations {
+		color:#000;
+	}
+
+	.periodLabel {
+			fill: #cccccc;
+			text-transform: uppercase;
+			font-weight: bold;
+	}
+
+	.barPart:hover {
+		opacity:0.7;
+	} 
+
+	.tooltip {
+		font-size:16px;
+		pointer-events: none;	
+		border: 1px #000 solid;
+		padding:2px 5px 2px 5px;
+		color:#000;
+	}
+
+	@media (max-width: 450px) {
+
+		.mobHide {
+		display: none;
+		}
+
+	}
+
+}

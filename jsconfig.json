@@ -1,0 +1,20 @@
+{
+  "include": [
+    "**/*.js",
+    "**/*.ts",
+    "**/*.svelte",
+    "**/*.spec.ts",
+    "babel.config.cjs"
+  ],
+  "compilerOptions": {
+    "module": "es2020",
+    "paths": {
+      "$lib/*": ["./src/lib/*"]
+    },
+    "esModuleInterop": true,
+    "target": "ES2015"
+  },
+  "typeAcquisition": {
+    "include": ["jest"]
+  }
+}

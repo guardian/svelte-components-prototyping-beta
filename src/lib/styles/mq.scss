@@ -1,0 +1,5 @@
+@use "@guardian/source/foundations/breakpoints.scss" as *;
+
+@forward "sass-mq/mq" with (
+  $breakpoints: $breakpoints
+);
