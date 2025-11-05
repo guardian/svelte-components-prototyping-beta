@@ -1,0 +1,9 @@
+Component,Syntax
+Choropleth.svelte,5
+ChoroplethMap.svelte,4
+DropdownSelect.svelte,5
+KeyLegend.svelte,5
+MapContainer.svelte,4
+MapTooltip.svelte,5
+SearchBox.svelte,5
+ZoomControls.svelte,5

@@ -46,7 +46,10 @@
     "@guardian/interactive-component-library": "0.1.0-alpha.20",
     "@guardian/source": "^0.0.0-canary-20251017113830",
     "@sveltejs/svelte-scroller": "^2.0.7",
-    "preact": "^10.19.6"
+    "chroma-js": "^3.1.2",
+    "d3": "^7.9.0",
+    "preact": "^10.19.6",
+    "topojson-client": "^3.1.0"
   },
   "browserslist": [
     "extends @guardian/browserslist-config"

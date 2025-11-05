@@ -1,36 +1,68 @@
 <script>
-  import { onMount } from "svelte"
+  // Core imports
+  import { onMount } from 'svelte'
+  import { getJson } from '$lib/helpers/guardian/toolbelt.js';
+  import Choropleth from './Choropleth.svelte';
+  import Logger from './Logger.svelte';
+  import Resizer from './Resizer.svelte';
 
-  // import {getExampleData, exampledata} from '$lib/stores/example.svelte.js';
-  // import Scrolly from '$lib/components/Scrolly.svelte'
+  // Data for the maps.
+  let data = $state([]);
 
-  onMount(async () => {
-    // await getExampleData()
-    // setInterval(async () => {
-    //   await getExampleData()
-    // }, 60000)
+  let { name = '' } = $props();
+
+  onMount(async() => {
+    const url = `https://interactive.guim.co.uk/docsdata/oz-2025-sa2-fertility-map.json`;
+    const json = await getJson(url);
+    data = json?.sheets?.data ? json.sheets.data : [];
+    console.log(data)
   })
 
-  let { name } = $props()
 </script>
 
 <div class="atom">
-  <!--
-  {#if exampledata.animals}
-    {#each exampledata.animals as animal}
-      <p>The {animal.animal} is {animal.size} and has {animal.legCount} legs.</p>
-    {/each}
-  {/if}
-  -->
 
-  <h2 class="src-article-15">Hello {name}</h2>
-  <!-- <Scrolly></Scrolly> -->
+  <Resizer atomName={`#${name}`}/>
+
+  <Logger testing={false} />
+
+  {#if data.length > 0}
+
+
+    <Choropleth 
+      {data}
+      boundary={'sa2-21'}
+      title={'Change in dwelling density by suburb'}
+      subtitle={'Link to <a target="_blank" href="https://docs.google.com/spreadsheets/d/1eFx2S_gpFbC1GzncQgcutPWXbj2cZEgl_dnVPKblGyc/edit?gid=807652696#gid=807652696">boundaries googledoc</a>'}
+      footnote={''}
+      source={'Australian Bureau of Statistics'}
+      displaySearch={true}
+      mapping={[{
+        "data": "TFR",
+        "display": "Change in dwellings 2011-2021",
+        "values": "0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4",
+        "colours": "#ffffcc,#ffeda0,#fed976,#feb24c,#fd8d3c,#fc4e2a,#e31a1c,#bd0026,#800026",
+        "tooltip": "{{SA2_NAME21}}: <b>{{TFR}}</b>",
+        "overlay-tooltip": "",
+        "scale": "threshold",
+        "keyText": "Birthrates"
+    }]}
+    />
+  {:else}
+    <h1>Loading...</h1>
+  {/if}
 </div>
 
 <style lang="scss">
-  @include mq($until: tablet) {
-    h2 {
-      margin-bottom: 30px;
-    }
+
+  .atom {
+    width:100%;
+    position: relative;
+  }
+
+  h2 {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 20px;
   }
 </style>
