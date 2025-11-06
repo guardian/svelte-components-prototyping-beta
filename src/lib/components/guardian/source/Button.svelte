@@ -10,6 +10,8 @@
 
   Read more... https://github.com/guardian/interactive-source-components/blob/main/src/button/README.md?plain=1
 
+  Icon options... https://guardian.github.io/storybooks/?path=/docs/source_react-components-icons--docs
+
 | Class                   | Description                                         | Default |
 | ----------------------- | --------------------------------------------------- | ------- |
 | `src-button--default`   | Dark background, light text.                        | ✅      |
