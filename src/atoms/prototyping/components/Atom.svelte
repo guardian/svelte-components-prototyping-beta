@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte"
-
+  import Button from "$lib/components/source/Button.svelte"
   // import {getExampleData, exampledata} from '$lib/stores/example.svelte.js';
   // import Scrolly from '$lib/components/Scrolly.svelte'
 
@@ -15,6 +15,10 @@
 </script>
 
 <div class="atom">
+
+  <h2 class="src-article-15">Guardian source components</h2>
+
+  <Button />
   <!--
   {#if exampledata.animals}
     {#each exampledata.animals as animal}
@@ -23,7 +27,7 @@
   {/if}
   -->
 
-  <h2 class="src-article-15">Hello {name}</h2>
+  
   <!-- <Scrolly></Scrolly> -->
 </div>
 
