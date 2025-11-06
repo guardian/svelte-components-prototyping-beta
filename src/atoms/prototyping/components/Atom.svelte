@@ -1,6 +1,7 @@
 <script>
   import { onMount } from "svelte"
   import Button from "$lib/components/source/Button.svelte"
+  import Icons from "$lib/components/source/Icons.svelte"
   // import {getExampleData, exampledata} from '$lib/stores/example.svelte.js';
   // import Scrolly from '$lib/components/Scrolly.svelte'
 
@@ -18,7 +19,8 @@
 
   <h2 class="src-article-15">Guardian source components</h2>
 
-  <Button />
+  <Button icon="all-recipes" />
+  <Icons icon="add-to-basket" size="medium" />
   <!--
   {#if exampledata.animals}
     {#each exampledata.animals as animal}

@@ -1,8 +1,10 @@
 <script>
   import "@guardian/interactive-source-components/button.css"
-  import "@guardian/interactive-source-components/icons.css"
+  import Icons from "$lib/components/source/Icons.svelte"
 
-  let { label = "Click me", icon = "add-to-basket", variant = "default" } = $props();
+  let { label = "Click me", icon = "", variant = "default", iconSize = "medium" } = $props();
+
+  let hasIcon = $derived(icon != "" ? true : false);
 
   /*
 
@@ -23,6 +25,8 @@
 </script>
 
 <button class="src-button src-button--{variant}">
-  <div class="src-icon--{icon}"></div>
+  {#if hasIcon}
+    <Icons icon="{icon}" size="{iconSize}" />
+  {/if}
   {label}
 </button>
