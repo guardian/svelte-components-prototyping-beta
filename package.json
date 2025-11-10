@@ -49,7 +49,10 @@
     "@sveltejs/svelte-scroller": "^2.0.7",
     "chroma-js": "^3.1.2",
     "d3": "^7.9.0",
+    "hls.js": "^1.6.14",
     "preact": "^10.19.6",
+    "shaka-player": "^4.16.8",
+    "subtitles-parser": "^0.0.2",
     "topojson-client": "^3.1.0"
   },
   "browserslist": [

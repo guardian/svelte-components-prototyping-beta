@@ -1,7 +1,7 @@
 <script>
   import { onMount } from "svelte"
-  import Button from "$lib/components/source/Button.svelte"
-  import Icons from "$lib/components/source/Icons.svelte"
+  import Button from "$lib/components/guardian/source/Button.svelte"
+  import Icons from "$lib/components/guardian/source/Icons.svelte"
   // import {getExampleData, exampledata} from '$lib/stores/example.svelte.js';
   // import Scrolly from '$lib/components/Scrolly.svelte'
 
@@ -19,8 +19,8 @@
 
   <h2 class="src-article-15">Guardian source components</h2>
 
-  <Button icon="all-recipes" />
-  <Icons icon="add-to-basket" size="medium" />
+  <Button icon="all-recipes" onClick={() => {console.log(`Clicked`)}} />
+
   <!--
   {#if exampledata.animals}
     {#each exampledata.animals as animal}
@@ -29,8 +29,8 @@
   {/if}
   -->
 
-  
   <!-- <Scrolly></Scrolly> -->
+   
 </div>
 
 <style lang="scss">

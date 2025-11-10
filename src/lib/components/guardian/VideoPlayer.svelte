@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import Hls from 'hls.js';
+  import ToggleButton from "$lib/components/guardian/ToggleButton.svelte";
 
   // Props using Svelte 5 syntax
   let { 
@@ -366,14 +367,17 @@
     </svg>
   </div>
   
-  <div 
+  <!--div 
     on:click={toggleSound} 
     class="mutation" 
     style="
       background-image: {muted ? 'url(__assetsPath__/muted.svg)' : 'url(__assetsPath__/playing.svg)'};
       background-color: {muted ? '#faa90d' : 'rgb(207, 248, 251)'};
     "
-  ></div>
+  ></div-->
+  <div class="mutation">
+    <ToggleButton iconOn="muted.svg" iconOff="unmuted.svg" value={muted} onChange={toggleSound} />
+  </div>
 </div>
 
 <style lang="scss">
@@ -424,8 +428,8 @@
     width: 30px;
     height: 30px;
     position: absolute;
-    left: 20px;
-    bottom: 20px;
+    left: 5px;
+    bottom: 25px;
     cursor: pointer;
     background-position: center;
     background-size: 80%;
