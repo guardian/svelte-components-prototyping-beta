@@ -5,6 +5,7 @@
   import Videos from './Videos.svelte'
   import Footer from './Footer.svelte'
   import Skip from './Skip.svelte'
+  import Graphic from './Graphic.svelte'
   import { getJson } from '$lib/helpers/guardian/toolbelt'
   import { showCaptions, isMuted, toggleCaptions, toggleMuted } from '$lib/stores/videoScroll.js'
 
@@ -284,8 +285,8 @@
                   </div>
 
                   <div class="graphic-container">
-                      <div class="multimedia">
-                         <!--Ai2Html />-->
+                    <div class="multimedia">
+                        <!--Graphic /-->
                       </div>
                   </div>
 
@@ -456,6 +457,7 @@
           width: 100%;
           display: inline-block;
           background-color: rgba(0, 0, 0, 0.5);
+          margin-bottom: 19px;
 
           .multimedia img {
             width: 100%;
