@@ -1,5 +1,5 @@
 <script>
-  
+  import { onMount } from 'svelte'
 	import Nav from './Nav.svelte'
   
 	import { showCaptions, isMuted, isVideoPlaying } from '$lib/stores/videoScroll.js'
@@ -17,8 +17,11 @@ let overlay = $state(false)
 let showControls = $state(false)
 let hasCaptions = $state(false)
 let activeVideoHasAudio = $state(false)
+let mounted = $state(false)
 
 $inspect(videos)
+
+
 
 // Update overlay based on active video
 $effect(() => {
@@ -275,6 +278,7 @@ async function playActiveVideo() {
           try {
             await videoElement.play();
             console.log(`Successfully started playing video ${activeVideo.vid}`);
+            mounted = true
             // Update the playback state to reflect that video is now playing
             import('$lib/stores/videoScroll.js').then(({ setVideoPlaying }) => {
               setVideoPlaying(true);
@@ -568,30 +572,35 @@ function addCaptionTrack(videoElement, videoId, subsPath) {
         class:cinema-background={video.vid !== active} 
         data-id={video.vid}
       >
-        <div class="video-wrapper {video.display}">
-          <video
-            id="media-element-{video.vid}"
-            class="frontline-media"
-            playsinline
-            data-id={video.vid}
-            muted={$isMuted || !video.hasAudio}
-            loop={video.loop}
-            poster={`${url}/${video.src}.jpg`}
-            crossorigin="anonymous"
-            on:loadeddata={() => handleVideoLoad(video.vid)}
-            on:canplay={() => handleVideoCanPlay(video.vid)}
-            on:play={() => handleVideoPlay(video.vid)}
-            on:pause={() => handleVideoPause(video.vid)}
-            on:ended={() => handleVideoEnded(video.vid)}
-            on:timeupdate={() => handleVideoTimeUpdate(video.vid)}
-            on:loadedmetadata={() => console.log(`Video ${video.vid} metadata loaded`)}
-            on:volumechange={() => handleVideoAudioEvent(video.vid, 'volumechange')}
-            on:canplaythrough={() => handleVideoAudioEvent(video.vid, 'canplaythrough')}
-            on:loadstart={() => console.log(`Video ${video.vid} load started`)}
-          >
-            <!-- Caption tracks loading dynamically via JavaScript -->
-          </video>
-        </div>
+        {#if video.vid === active}
+          <div class="video-wrapper {video.display}">
+            <video
+              id="media-element-{video.vid}"
+              class="frontline-media"
+              playsinline
+              preload="auto"
+              data-id={video.vid}
+              muted={$isMuted || !video.hasAudio}
+              loop={video.loop}
+              poster={`${url}/${video.src}.jpg`}
+              crossorigin="anonymous"
+              on:loadeddata={() => handleVideoLoad(video.vid)}
+              on:canplay={() => handleVideoCanPlay(video.vid)}
+              on:play={() => handleVideoPlay(video.vid)}
+              on:pause={() => handleVideoPause(video.vid)}
+              on:ended={() => handleVideoEnded(video.vid)}
+              on:timeupdate={() => handleVideoTimeUpdate(video.vid)}
+              on:loadedmetadata={() => console.log(`Video ${video.vid} metadata loaded`)}
+              on:volumechange={() => handleVideoAudioEvent(video.vid, 'volumechange')}
+              on:canplaythrough={() => handleVideoAudioEvent(video.vid, 'canplaythrough')}
+              on:loadstart={() => console.log(`Video ${video.vid} load started`)}
+            >
+              <!-- Caption tracks loading dynamically via JavaScript -->
+            </video>
+          </div>
+        {:else}
+          <div class="video-wrapper {video.display}"></div>
+        {/if}
       </div>
     {/each}
   </div> 

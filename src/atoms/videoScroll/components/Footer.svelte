@@ -111,6 +111,11 @@
   }
 
   .footer {
+
+    width: 100%;
+    max-width: 1100px;
+    margin: auto;
+
     $footer-breakpoints: (
       tablet: 740px,
       desktop: 980px,
@@ -126,6 +131,14 @@
         margin-left: 10px;
       }
     }
+
+    p {
+      font-family: Guardian Text Egyptian Web, Georgia, serif;
+      font-size: 19px;
+      line-height: 145%;
+      text-align: left;
+    }
+
 
     .footer-video-thumbnails {
       width: 100%;
