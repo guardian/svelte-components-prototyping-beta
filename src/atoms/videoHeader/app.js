@@ -13,8 +13,8 @@ import { hydrate } from "svelte"
 let app
 
 app = hydrate(Atom, {
-  target: document.getElementById("videoHeader"),
-  props: { name: "videoHeader" },
+  target: document.getElementById("gv-atom"),
+  props: { name: "gv-atom" },
 })
 
 export default app
