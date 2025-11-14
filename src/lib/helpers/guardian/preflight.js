@@ -1,6 +1,4 @@
 
-import appMap from "./appMap"
-
 function getSize(width, breakpoints) {
     for (let i = 0; i < breakpoints.length; i++) {
       if (width < breakpoints[i].maxWidth) {
@@ -137,19 +135,3 @@ export async function preflight(settings) {
     return settings;
   }
   
-  
-
-  
-
-  
-const isMobileApp = () => {
-  const parentIsIos = document.querySelector(".ios")
-  const parentIsAndroid = document.querySelector(".android")
-  return parentIsIos || parentIsAndroid
-}
-
-const selectorAppOrDCR = (toSelect) =>
-  isMobileApp() ? appMap[toSelect].app : appMap[toSelect].desktop
-
-
-export { selectorAppOrDCR }

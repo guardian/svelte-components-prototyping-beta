@@ -1,12 +1,10 @@
 <script>
   import { onMount, onDestroy } from "svelte"
-  import { isApp, isAndroid, isIOS } from "$lib/helpers/guardian/platform"
-  import { resizeIframe } from "$lib/helpers/guardian/toolbelt.js"
   import {
     preflight,
-    selectorAppOrDCR,
   } from "$lib/helpers/guardian/preflight.js"
   import Hls from "hls.js"
+  import Resizer from "$lib/components/guardian/Resizer.svelte"
 
   let {
     src = "clip1",
@@ -20,7 +18,7 @@
     forceHighRes = false,
     forceStandardPlayer = false,
     broadcastSource = "",
-    testing = false,
+    testing = true,
   } = $props()
 
   let videoElement = null
@@ -38,7 +36,7 @@
   let channel = null
   let audioToggleButton = null
   let logContainerEl = $state(null)
-
+  let isInIframe = false
   let isBroadcasting = $derived(
     broadcastSource !== "" && typeof BroadcastChannel !== "undefined",
   )
@@ -371,40 +369,37 @@
     application = await preflight({})
 
     // Determine if we're in an iframe and get the appropriate document
-    const isInIframe = window !== window.parent
+   isInIframe = window !== window.parent
     const targetWindow = isInIframe ? window.parent : window
 
     // Listen for audio sync messages via BroadcastChannel only
     try {
-      if (isBroadcasting) {
-        channel = new BroadcastChannel(broadcastSource)
-        channel.onmessage = (e) => {
-          const data = e?.data
-          if (!data || data.source !== broadcastSource) return
-          if (data.type === "set-audio" || data.type === "audio-state") {
-            const audioOn = !!data.payload?.audioOn
-            const nextMuted = !audioOn
-            if (muted !== nextMuted) {
-              muted = nextMuted
-              if (videoElement) videoElement.muted = muted
+      if (typeof BroadcastChannel !== "undefined") {
+        if (isBroadcasting) {
+          channel = new BroadcastChannel(broadcastSource)
+          channel.onmessage = (e) => {
+            const data = e?.data
+            if (!data || data.source !== broadcastSource) return
+            if (data.type === "set-audio" || data.type === "audio-state") {
+              const audioOn = !!data.payload?.audioOn
+              const nextMuted = !audioOn
+              if (muted !== nextMuted) {
+                muted = nextMuted
+                if (videoElement) videoElement.muted = muted
+              }
+              updateAudioToggleUI()
             }
-            updateAudioToggleUI()
           }
+          log("Header: BroadcastChannel active")
+        } else {
+          log("Header: Has BroadcastChannel capabilities but BroadcastChannel is not being used")
         }
-        log("Header: BroadcastChannel active")
+
       } else {
         log("Header: BroadcastChannel not supported; audio sync disabled")
       }
     } catch (_) {
       log("Header: BroadcastChannel setup failed; audio sync disabled", "error")
-    }
-
-    if (isInIframe) {
-      log("Running in iframe, targeting parent document")
-
-      if (testing) {
-        resizeIframe()
-      }
     }
 
     targetDocument = isInIframe ? window.parent.document : document
@@ -413,64 +408,54 @@
 
     let mainMediaContainer = null
 
-    if (isApp(targetDocument)) {
-      log("App detected, looking for media container")
-      mainMediaContainer = targetDocument.querySelector(
-        selectorAppOrDCR("media"),
-      )
-      if (mainMediaContainer) {
-        log("Found main media container")
-      } else {
-        log("No main media container found", "error")
-      }
-    } else {
-      log("Web detected, waiting for #img-1 to exist")
-      // If developing locally, the host page may not provide #img-1 – create a minimal container
-      const isLocalhost =
-        (targetWindow?.location?.hostname || "").includes("localhost") ||
-        (targetWindow?.location?.href || "").includes("localhost")
-      if (isLocalhost) {
-        let existing = targetDocument.querySelector("#img-1")
-        if (!existing) {
-          log(
-            "Localhost detected and #img-1 missing – creating placeholder container",
-          )
-          existing = targetDocument.createElement("div")
-          existing.id = "img-1"
-          // Create minimal picture/img structure so downstream queries do not fail
-          const picture = targetDocument.createElement("picture")
-          const img = targetDocument.createElement("img")
-          img.alt = ""
-          picture.appendChild(img)
-          existing.appendChild(picture)
-          // Insert near top of <body> so it exists for video insertion
-          if (body?.firstChild) {
-            body.insertBefore(existing, body.firstChild)
-          } else {
-            body.appendChild(existing)
-          }
-        }
-      }
-      // Wait for #img-1 to exist with a timeout
-      const maxWaitTime = 10000 // 10 seconds
-      const checkInterval = 100 // Check every 100ms
-      let elapsedTime = 0
 
-      while (!mainMediaContainer && elapsedTime < maxWaitTime) {
-        mainMediaContainer = targetDocument.querySelector("#img-1")
-        if (!mainMediaContainer) {
-          await new Promise((resolve) => setTimeout(resolve, checkInterval))
-          elapsedTime += checkInterval
+    log("Waiting for #img-1 to exist")
+    // If developing locally, the host page may not provide #img-1 – create a minimal container
+    const isLocalhost =
+      (targetWindow?.location?.hostname || "").includes("localhost") ||
+      (targetWindow?.location?.href || "").includes("localhost")
+    if (isLocalhost) {
+      let existing = targetDocument.querySelector("#img-1")
+      if (!existing) {
+        log(
+          "Localhost detected and #img-1 missing – creating placeholder container",
+        )
+        existing = targetDocument.createElement("div")
+        existing.id = "img-1"
+        // Create minimal picture/img structure so downstream queries do not fail
+        const picture = targetDocument.createElement("picture")
+        const img = targetDocument.createElement("img")
+        img.alt = ""
+        picture.appendChild(img)
+        existing.appendChild(picture)
+        // Insert near top of <body> so it exists for video insertion
+        if (body?.firstChild) {
+          body.insertBefore(existing, body.firstChild)
+        } else {
+          body.appendChild(existing)
         }
-      }
-
-      if (mainMediaContainer) {
-        log("Found #img-1 container after waiting")
-      } else {
-        log("Timeout waiting for #img-1 container", "error")
-        return // Exit early if we can't find the container
       }
     }
+    // Wait for #img-1 to exist with a timeout
+    const maxWaitTime = 10000 // 10 seconds
+    const checkInterval = 100 // Check every 100ms
+    let elapsedTime = 0
+
+    while (!mainMediaContainer && elapsedTime < maxWaitTime) {
+      mainMediaContainer = targetDocument.querySelector("#img-1")
+      if (!mainMediaContainer) {
+        await new Promise((resolve) => setTimeout(resolve, checkInterval))
+        elapsedTime += checkInterval
+      }
+    }
+
+    if (mainMediaContainer) {
+      log("Found #img-1 container after waiting")
+    } else {
+      log("Timeout waiting for #img-1 container", "error")
+      return // Exit early if we can't find the container
+    }
+    
 
     const imgEl = targetDocument.querySelector("#img-1 picture img")
     const currentSrc = imgEl ? imgEl.currentSrc || imgEl.src : null
@@ -524,22 +509,7 @@
       insertAudioToggle(mainMediaContainer)
     }
 
-    // If testing, overlay the log container on top of the video container
-    if (testing && logContainerEl) {
-      try {
-        // Ensure the container is positioned so absolute children anchor correctly
-        if (getComputedStyle(mainMediaContainer).position === "static") {
-          mainMediaContainer.style.position = "relative"
-        }
-        logContainerEl.classList.add("overlay")
-        mainMediaContainer.appendChild(logContainerEl)
-        log("Overlayed log container on top of the video")
-      } catch (_) {
-        // Fallback append to body
-        body?.appendChild(logContainerEl)
-        log("Fell back to appending log container to body", "error")
-      }
-    }
+
 
     // Do not announce initial state; header is a passive listener
 
@@ -730,9 +700,7 @@
 
   async function initializeVideoPlayer() {
     log("initializeVideoPlayer called")
-    log(
-      `Platform detection - Android: ${isAndroid(targetDocument)}, iOS: ${isIOS(targetDocument)}`,
-    )
+
 
     // Check if standard player is forced via settings
     if (forceStandardPlayer) {
@@ -752,19 +720,6 @@
       )
       format = "Standard video (forced)"
       standardPlayer()
-      return
-    }
-
-    if (isAndroid(targetDocument) || isIOS(targetDocument)) {
-      if (isAndroid(targetDocument)) {
-        format = "Guardian android app: Shaka player"
-        log("Using Shaka player for Android")
-        initShakaPlayer()
-      } else {
-        format = "Guardian iOS app"
-        log("Using standard player for iOS")
-        standardPlayer()
-      }
       return
     }
 
@@ -979,19 +934,37 @@
   }
 </script>
 
-<div class="atom" style="width: 100%;display:{testing ? 'block' : 'none'}">
-  {#if testing}
-    <div class="log-container" bind:this={logContainerEl}>
-      {#each logMessages as message}
-        <div class="log-message {message.type}">
-          {message.text}
-        </div>
-      {/each}
-    </div>
-  {/if}
+<div class="atom" style="width: 100%;">
+
+    {#if testing}
+
+      {#if isInIframe}
+        <Resizer atomName="atom-1" />
+      {/if}
+
+      <div class="log-container" bind:this={logContainerEl}>
+        {#each logMessages as message}
+          <div class="log-message {message.type}">
+            {message.text}
+          </div>
+        {/each}
+      </div>
+    {/if}
+
+  
+
+
+  
+
+
 </div>
 
 <style lang="scss">
+
+  .atom {
+    width: 100%;
+    position: relative;
+  }
   .log-container {
     width: 100%;
     height: 500px;
@@ -1004,16 +977,6 @@
     font-size: 12px;
     max-height: 200px;
     overflow-y: auto;
-  }
-  .log-container.overlay {
-    position: relative;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 1101; // above video (1000)
-    margin-top: 0;
-    background: rgba(0, 0, 0, 0.6);
-    color: #fff;
   }
 
   .log-message {

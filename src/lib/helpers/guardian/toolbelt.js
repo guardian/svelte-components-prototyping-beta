@@ -1,4 +1,4 @@
-import appMap from "./appMap"
+
 
 // =============================================================================
 // NETWORK & DATA UTILITIES
@@ -38,13 +38,6 @@ const isMobileApp = () => {
   return parentIsIos || parentIsAndroid
 }
 
-/**
- * Selects appropriate configuration based on platform (mobile app vs desktop)
- * @param {string} toSelect - The key to select from appMap
- * @returns {*} The appropriate configuration for the current platform
- */
-const selectorAppOrDCR = (toSelect) =>
-  isMobileApp() ? appMap[toSelect].app : appMap[toSelect].desktop
 
 // =============================================================================
 // OBJECT & ARRAY UTILITIES
@@ -496,6 +489,5 @@ export function swapArray(arr) {
 // =============================================================================
 
 export {
-  selectorAppOrDCR,
   tooltipUtilities
 }
