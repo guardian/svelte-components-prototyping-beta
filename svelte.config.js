@@ -9,7 +9,7 @@ export default {
   preprocess: [
     {
       style: ({ content }) => ({
-        code: `@use "${libPath}/styles/mq.scss" as *;\n@use "@guardian/source/foundations/typography.css" as *;\n${content}`,
+        code: `@use "${libPath}/styles/mq.scss" as *;\n@use "@guardian/source/foundations/typography-mixins.scss" as *;\n${content}`,
       }),
     },
     vitePreprocess(),

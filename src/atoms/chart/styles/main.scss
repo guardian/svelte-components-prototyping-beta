@@ -1,5 +1,5 @@
-@import "@guardian/source/foundations/typography.css";
-@import "@guardian/source/foundations/palette.css";
+@use "@guardian/source/foundations/typography-classes.css";
+@use "@guardian/source/foundations/palette.css";
 
 @import "$lib/styles/mq.scss";
 @import "$lib/styles/defaults.scss";

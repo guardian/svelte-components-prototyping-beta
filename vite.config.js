@@ -7,7 +7,7 @@ import replace from "@rollup/plugin-replace"
 import { testHarness } from "./scripts/testHarness.js"
 import { prerender } from "./scripts/prerender.js"
 import preact from "@preact/preset-vite"
-import { purgeCSSPlugin } from "@fullhuman/postcss-purgecss"
+import { purgeSourceCss } from "./scripts/purgeSourceCss.js"
 
 const assetsPath = process.env.ATOM_ASSETS_PATH || ""
 
@@ -23,32 +23,17 @@ export default defineConfig(({ mode }) => {
     esbuild: {
       // remove console.log and debugger statements from production builds
       drop: ["debugger"],
-      pure: [
-        "console.log",
-        "console.error",
-        "console.warn",
-        "console.debug",
-        "console.trace",
-      ],
+      // pure: [
+      //   "console.log",
+      //   "console.error",
+      //   "console.warn",
+      //   "console.debug",
+      //   "console.trace",
+      // ],
     },
     css: {
       postcss: {
-        plugins: [
-          autoprefixer(),
-          ...(mode === "development"
-            ? []
-            : [
-                purgeCSSPlugin({
-                  content: ["src/atoms/**/*.{js,svelte,css,scss,sass,html}"],
-                  variables: true,
-                  safelist: {
-                    // Remove any unused classes and variables that begin with "src-*",
-                    // ie. those imported from @guardian/source that we haven't used
-                    standard: [/^(?:(?!src-).)*$/],
-                  },
-                }),
-              ]),
-        ],
+        plugins: [autoprefixer()],
       },
       devSourcemap: true,
     },
@@ -73,6 +58,9 @@ export default defineConfig(({ mode }) => {
       // NOTE: Only works when you don't reference 'document' or 'window' in Svelte components.
       // If you really need to use either of those, disable prerendering here.
       prerender(),
+
+      // Run PurgeCSS on the final CSS output, to remove unused styles imported from "@guardian/source"
+      purgeSourceCss(),
 
       viteStaticCopy({
         targets: [

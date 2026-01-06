@@ -4,6 +4,7 @@ import { readFile } from "fs/promises"
 import path from "path"
 import { listDirectories } from "./utils/fileSystem.js"
 import config from "../project.config.js"
+import { getLiveHarnessAndInjectAtom } from "./liveHarness.js"
 
 export function testHarness() {
   let root
@@ -35,21 +36,34 @@ export function testHarness() {
 
         if (path === "/" || path.startsWith("/atoms/")) {
           try {
+            let atomHTML = await loadMainHTML(path, server)
+            if (atomHTML) {
+              atomHTML = await server.transformIndexHtml("/", atomHTML)
+            }
+
+            if (path.includes("/live")) {
+              const liveHarnessHTML = await getLiveHarnessAndInjectAtom(
+                config,
+                atomHTML,
+              )
+              const liveHarnessHTMLWithScript = liveHarnessHTML.replace(
+                "</body>",
+                `<script type="module" src="${makeJSPath(root, path)}"></script></body>`,
+              )
+              res.end(liveHarnessHTMLWithScript)
+              return
+            }
+
             let template = await plugin.load(path)
             if (!template) {
               console.log("Could not find html for path", path)
               return next()
             }
 
-            let mainHTML = await loadMainHTML(path, server)
-            if (mainHTML) {
-              mainHTML = await server.transformIndexHtml("/", mainHTML)
-            }
-
             // Apply lodash templating
             const result = await plugin.transformTemplateHTML(
               template,
-              mainHTML,
+              atomHTML,
               path,
             )
             res.end(result)
@@ -84,8 +98,6 @@ export function testHarness() {
           atoms: atomDirectories,
         })
       } else if (id.match(/^\/atoms\/[^\/]+\/[^\/]+\/$/)) {
-        const atom = resolveAtom(id)
-
         return _.template(templateHTML)({
           title: config.title,
           headline: config.placeholders.headline,
@@ -95,7 +107,7 @@ export function testHarness() {
             : "display: none;",
           paragraphBefore: config.placeholders.paragraphBefore,
           html: mainHTML,
-          js: path.join(root, atom, "app.js"),
+          js: makeJSPath(root, id),
         })
       }
 
@@ -113,6 +125,11 @@ function resolveAtom(id) {
   }
 
   return null
+}
+
+const makeJSPath = (root, id) => {
+  const atom = resolveAtom(id)
+  return path.join(root, atom, "app.js")
 }
 
 async function loadMainHTML(id, server) {
