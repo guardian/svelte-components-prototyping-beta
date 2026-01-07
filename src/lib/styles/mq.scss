@@ -1,5 +1,14 @@
+@use "sass:map";
 @use "@guardian/source/foundations/breakpoints.scss" as *;
 
+// Extend Source breakpoints with local aliases used in components
+$custom-breakpoints: (
+  slim: 480px,  // alias for mobile landscape-ish
+  artie: 660px  // alias for phablet-ish
+);
+
+$extended-breakpoints: map.merge($breakpoints, $custom-breakpoints);
+
 @forward "sass-mq/mq" with (
-  $breakpoints: $breakpoints
+  $breakpoints: $extended-breakpoints
 );

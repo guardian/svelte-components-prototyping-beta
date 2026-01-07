@@ -198,7 +198,7 @@ export function isoToUnix(isoDate) {
  */
 export function parseAussieLocal(ts) {
   const date = new Date(ts * 1000);
-  
+
   const sydneyString = date.toLocaleString('en-AU', {
     timeZone: 'Australia/Sydney',
     year: 'numeric',
@@ -444,15 +444,15 @@ var tooltipUtilities = {
 
 export function isTouchOnlyDevice() {
   // Check if touch events are supported
-  const hasTouch = 'ontouchstart' in window || 
-                   navigator.maxTouchPoints > 0 || 
-                   window.TouchEvent !== undefined;
-  
+  const hasTouch = 'ontouchstart' in window ||
+    navigator.maxTouchPoints > 0 ||
+    window.TouchEvent !== undefined;
+
   // Check if this is likely a touch-only device
   // This includes checking for mobile user agents and lack of hover capability
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   const hasHover = window.matchMedia('(hover: hover)').matches;
-  
+
   // Return true if device has touch AND (is mobile OR doesn't have hover capability)
   return hasTouch && (isMobile || !hasHover);
 }
@@ -467,21 +467,82 @@ export function swapArray(arr) {
   return arr[0].map((col, i) => arr.map(row => row[i]));
 }
 
-  /**
-   * Converts large numbers to a nice readable format.
-   * @param {number|string} num - The number to format.
-   * @returns {string} Formatted number.
-   */
-  export function niceNumber(num) {
-    const n = parseFloat(num);
-    if (isNaN(n)) return num;
+/**
+ * Converts large numbers to a nice readable format.
+ * @param {number|string} num - The number to format.
+ * @returns {string} Formatted number.
+ */
+export function niceNumber(num) {
+  const n = parseFloat(num);
+  if (isNaN(n)) return num;
 
-    if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1) + 'bn';
-    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'm';
-    if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k';
+  if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1) + 'bn';
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'm';
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k';
 
-    return n % 1 === 0 ? n.toString() : n.toFixed(2);
+  return n % 1 === 0 ? n.toString() : n.toFixed(2);
+}
+
+export const getDimensions = el => {
+  const width = el.clientWidth || el.getBoundingClientRect().width
+  const height = el.clientHeight || el.getBoundingClientRect().height
+  return [width, height]
+}
+
+export function getNextHighestIndex(arr, value) {
+
+  // Return the index of the next highest value in the array. 
+  // If there is no value in the array that is higher than the supplied value, 
+  // it will return the length of the array. If all values in the array are higher, 
+  // it will return 0.
+  var i = arr.length;
+  while (arr[--i] > value);
+  return ++i;
+}
+
+export function multiples(arr, multiplyer) {
+
+  let array = []
+
+  arr.forEach(function (num) {
+    if (num % multiplyer === 0) {
+      array.push(num)
+    }
+  });
+
+  return array
+
+}
+
+
+export function hexToRgb(hex) {
+  var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+  hex = hex.replace(shorthandRegex, function (m, r, g, b) {
+    return r + r + g + g + b + b;
+  });
+
+  var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : null;
+}
+
+export function dateChecker(dt, start, end) {
+
+  let date = new Date(dt);
+  let from = new Date(start);
+  let to = new Date(new Date(end).setDate(new Date(end).getDate() + 1));
+  let check = new Date(dt).setMinutes(date.getMinutes() - date.getTimezoneOffset());
+
+  if (check >= from && check < to) {
+    console.log(dt)
   }
+
+  return (check >= from && check < to) ? true : false
+
+}
 
 
 // =============================================================================
