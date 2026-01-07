@@ -1,14 +1,19 @@
 <svelte:options runes={true} />
+
 <script>
   import smoothscroll from "smoothscroll-polyfill"
   import { onMount, tick } from "svelte"
   import Panel from "./Panel.svelte"
-  let { data = [], title = "name", image = "img", description = "description" } = $props()
+  let {
+    data = [],
+    title = "name",
+    image = "img",
+    description = "description",
+  } = $props()
   let panelOpen = $state(false)
   let panelData = $state({})
   let order = $state(0)
   let facewallWidth = $state(0)
-
 
   onMount(async () => {
     smoothscroll.polyfill()
@@ -62,7 +67,15 @@
   {#if data && data.length}
     <div class="facewall_block_container" bind:clientWidth={facewallWidth}>
       <div class="facewall">
-        <Panel {panelData} bind:panelOpen handleChange={updatePanel} {order} {title} {image} {description} />
+        <Panel
+          {panelData}
+          bind:panelOpen
+          handleChange={updatePanel}
+          {order}
+          {title}
+          {image}
+          {description}
+        />
 
         {#each data as result, i (result.index ?? i)}
           <div
@@ -81,7 +94,10 @@
               style:background-image={`url('${result[image] ?? result.hosted_image ?? result.img ?? ""}')`}
             ></div>
 
-            <div class="facewall_title" style="background-color: {result.colour};">
+            <div
+              class="facewall_title"
+              style="background-color: {result.colour};"
+            >
               <div class="faces_and_heads" style="color: white;">
                 {result[title]}
               </div>
@@ -149,17 +165,17 @@
           overflow: hidden;
           text-overflow: ellipsis;
 
-          @include mq($until: slim) {
+          @include mq($until: mobile) {
             font-size: 12px;
             line-height: 120%;
           }
 
-          @include mq($from: slim, $until: artie) {
+          @include mq($from: mobile, $until: mobileLandscape) {
             font-size: 14px;
             line-height: 120%;
           }
 
-          @include mq($from: artie, $until: tablet) {
+          @include mq($from: mobileLandscape, $until: tablet) {
             font-size: 16px;
             line-height: 1.1em;
           }
@@ -186,24 +202,23 @@
 
         .facewall_quads {
           margin-bottom: 10px;
-          /*
-                    @include mq($until: slim) {
-                        width: 100%;
-                        margin-right: 3px;
-                        padding-bottom: calc(100% + 40px);
-                    }
-                
-                    @include mq($from: slim, $until: artie) {
-                        width: calc(50% - 10px);
-                        margin-right: 10px;
-                        padding-bottom: calc(50% + 40px);
-                    }
-                        */
 
-          @include mq($until: tablet) {
+          @include mq($until: mobile) {
+            width: 100%;
+            margin-right: 3px;
+            padding-bottom: calc(100% + 40px);
+          }
+
+          @include mq($from: mobile, $until: mobileLandscape) {
+            width: calc(50% - 10px);
+            margin-right: 10px;
+            padding-bottom: calc(50% + 40px);
+          }
+
+          @include mq($from: mobileLandscape, $until: tablet) {
             width: calc(33.3% - 10px);
             margin-right: 10px;
-            padding-bottom: calc(33.3% + 40px);
+            padding-bottom: calc(33.3%);
           }
 
           @include mq($from: tablet, $until: desktop) {

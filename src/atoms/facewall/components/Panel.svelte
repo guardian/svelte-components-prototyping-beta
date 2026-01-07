@@ -59,11 +59,11 @@
     padding: 30px;
     margin-bottom: 10px;
 
-    @include mq($until: slim) {
+    @include mq($until: mobile) {
       margin-right: 5px;
     }
 
-    @include mq($from: slim) {
+    @include mq($from: mobile) {
       margin-right: 10px;
       min-height: 370px;
     }
@@ -131,15 +131,16 @@
   }
 
   .facewall_panel_editorial {
+
     @include mq($until: mobile) {
       width: 100%;
     }
 
-    @include mq($from: mobile, $until: artie) {
+    @include mq($from: mobile, $until: mobileLandscape) {
       width: 100%;
     }
 
-    @include mq($from: artie, $until: tablet) {
+    @include mq($from: mobileLandscape, $until: tablet) {
       width: calc(60% - 20px);
     }
 
@@ -162,12 +163,12 @@
       margin-top: 10px;
     }
 
-    @include mq($from: mobile, $until: artie) {
+    @include mq($from: mobile, $until: mobileLandscape) {
       width: 100%;
       margin-top: 10px;
     }
 
-    @include mq($from: artie, $until: tablet) {
+    @include mq($from: mobileLandscape, $until: tablet) {
       width: 40%;
       height: 0px;
       padding-bottom: 24%;
