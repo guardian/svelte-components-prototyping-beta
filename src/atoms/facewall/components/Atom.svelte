@@ -47,7 +47,7 @@
   </div>
 
   {#if data && data.length && !loading}
-    <Facewall {data} title="name" image="img" />
+    <Facewall {data} title="name" image="img" description="description" />
   {/if}
 </div>
 
