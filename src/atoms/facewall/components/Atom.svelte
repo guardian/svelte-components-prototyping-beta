@@ -4,11 +4,13 @@
   import { onMount } from "svelte"
   import { getJson, hexToRgb } from "$lib/helpers/guardian/toolbelt.js"
   import Facewall from "./Facewall.svelte"
+  import Resizer from "$lib/components/guardian/Resizer.svelte"
 
   let data = $state([])
   let loading = $state(true)
   let error = $state(null)
   let defaultColour = $state("#5e85b1")
+  let { name } = $props()
 
   onMount(async () => {
     try {
@@ -35,6 +37,7 @@
 </script>
 
 <div class="atom">
+  <Resizer atomName={`#${name}`}/>
   <div class="facewall-wrapper">
     <div class="facewallTitle">
       Caught in the spiral: children with FASD in the justice system
@@ -47,7 +50,11 @@
   </div>
 
   {#if data && data.length && !loading}
-    <Facewall {data} title="name" image="img" description="description" />
+    <Facewall {data} 
+    title="name" 
+    image="img" 
+    description="description" 
+    />
   {/if}
 </div>
 
@@ -67,11 +74,12 @@
 
   .facewallTitle {
     font-size: 20px;
-    line-height: 28px;
+    line-height: 140%;
     font-weight: 600;
     -webkit-font-smoothing: antialiased;
     color: #333;
-    font-family: "Guardian Headline Full", Georgia, serif;
+    font-family: GuardianTextEgyptian, "Guardian Text Egyptian Web", Georgia, serif;
+    font-weight:bold;
   }
 
   .facewallSubTitle {

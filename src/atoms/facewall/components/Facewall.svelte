@@ -53,12 +53,39 @@
     await tick()
     const panelEl = document.querySelector(".facewall_panel")
     if (panelEl) {
-      const elementTop =
-        window.pageYOffset + panelEl.getBoundingClientRect().top
-      window.scroll({
-        top: elementTop,
-        behavior: "smooth",
-      })
+      const rect = panelEl.getBoundingClientRect()
+      const isInIframe = window.self !== window.top
+
+      if (isInIframe) {
+        try {
+          const frameRect = window.frameElement?.getBoundingClientRect?.()
+          if (frameRect) {
+            const delta = rect.top + frameRect.top
+            window.parent?.scrollBy?.({
+              top: delta,
+              behavior: "smooth",
+            })
+          } else {
+            const elementTop = window.pageYOffset + rect.top
+            window.scroll({
+              top: elementTop,
+              behavior: "smooth",
+            })
+          }
+        } catch (e) {
+          const elementTop = window.pageYOffset + rect.top
+          window.scroll({
+            top: elementTop,
+            behavior: "smooth",
+          })
+        }
+      } else {
+        const elementTop = window.pageYOffset + rect.top
+        window.scroll({
+          top: elementTop,
+          behavior: "smooth",
+        })
+      }
     }
   }
 </script>
