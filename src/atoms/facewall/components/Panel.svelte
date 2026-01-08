@@ -187,4 +187,15 @@
     }
   }
 
+  .description_text {
+    margin-bottom: 20px;
+    word-break: break-word;
+    font-family: GuardianTextEgyptian, "Guardian Text Egyptian Web", Georgia, serif;
+    font-size: 17px;
+    line-height: 1.4;
+    font-weight: 400;
+    font-style: normal;
+    --source-text-decoration-thickness: 2px;
+  }
+
 </style>
