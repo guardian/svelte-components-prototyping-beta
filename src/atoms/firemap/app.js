@@ -13,8 +13,8 @@ import { hydrate } from "svelte"
 let app
 
 app = hydrate(Atom, {
-  target: document.getElementById("firemap"),
-  props: { name: "firemap" },
+  target: document.getElementById("gv-atom"),
+  props: { name: "atom" },
 })
 
 export default app
