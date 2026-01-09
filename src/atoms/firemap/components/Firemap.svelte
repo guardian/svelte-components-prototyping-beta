@@ -32,6 +32,7 @@
   let warningColours = {
     Advice: "#fed976",
     "Watch and Act": "#fd8d3c",
+    "Watch & Act": "#fd8d3c",
     "Emergency Warning": "#b10026",
   }
   // Toggle to disable map interactions (set to false to disable zoom/pan)
@@ -73,6 +74,8 @@
           warningColours["Advice"],
           "Watch and Act",
           warningColours["Watch and Act"],
+          "Watch & Act",
+          warningColours["Watch & Act"],
           "Emergency Warning",
           warningColours["Emergency Warning"],
           "#000", // fallback color
@@ -92,6 +95,8 @@
           warningColours["Advice"],
           "Watch and Act",
           warningColours["Watch and Act"],
+          "Watch & Act",
+          warningColours["Watch & Act"],  
           "Emergency Warning",
           warningColours["Emergency Warning"],
           "#000", // fallback color
@@ -103,9 +108,11 @@
 
   // Component props
   let {
-    data = "WA-warning",
+    fireURL = "https://interactive.guim.co.uk/2026/01/aus-fire-map/VIC-warning.json",
+    timestampURL = "https://interactive.guim.co.uk/2026/01/aus-fire-map/vic-warning-timestamp.json",
     MAP_INTERACTIVE = true,
     center = [116.03196265904751, -31.90047341428921],
+    zoom = 8,
     headline = "Perth bushfires",
     subtitle = "Showing bushfire warning areas. Data last checked {timestamp} (AEST). This map should not be relied on in an emergency, please check the <a href='https://www.emergency.wa.gov.au/' target='_blank'>EmergencyWA website</a> for the latest information",
     source = "Guardian graphic. Source: <a href='https://www.emergency.wa.gov.au/' target='_blank'>EmergencyWA website</a>, OpenStreetMap",
@@ -200,10 +207,10 @@
   onMount(async () => {
     // Fetch the fire data first
     const fires = await getJson(
-      `https://interactive.guim.co.uk/2025/12/aus-fire-map/${data}.json`,
+        fireURL,
     )
     const timestamp_json = await getJson(
-      `https://interactive.guim.co.uk/2025/12/aus-fire-map/${data}-timestamp.json`,
+      timestampURL,
     )
     timestamp = timestamp_json.lastUpdated
     dispatch("timestamp", timestamp)
@@ -236,7 +243,7 @@
       container: "fireMap",
       style: mapDefs,
       center: center,
-      zoom: 9.16,
+      zoom: zoom,
     })
 
     // Disable interactions if MAP_INTERACTIVE is false
