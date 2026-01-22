@@ -146,9 +146,9 @@
       settings.isMobile = isMobileDevice()
 
       settings.app = {
-        isApp: isApp(),
-        isIos: isIOSDevice(),
-        isAndroid: isAndroid(),
+        isApp: isApp,
+        isIos: isIOSDevice,
+        isAndroid: isAndroid,
         isiPhone: /(iPhone)/i.test(navigator.platform),
         isiPad: /iPad/i.test(navigator.userAgent),
       }
@@ -160,9 +160,9 @@
       settings.userAgent = "unknown"
       settings.isMobile = false
       settings.app = {
-        isApp: isApp(),
-        isIos: isIOSDevice(),
-        isAndroid: isAndroid(),
+        isApp: isApp,
+        isIos: isIOSDevice,
+        isAndroid: isAndroid,
         isiPhone: false,
         isiPad: false,
       }
