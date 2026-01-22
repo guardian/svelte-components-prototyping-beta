@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy, createEventDispatcher } from "svelte"
   import Hls from "hls.js"
-  import { isApp, isAndroid, isIOS } from "$lib/helpers/platform.js"
+  import { isApp, isAndroid, isIOS } from "$lib/helpers/guardian/platform.js"
 
   // Props using Svelte 5 syntax
   let {
@@ -17,6 +17,7 @@
     muted: mutedProp = true,
     showCaptions = false,
     captionsOffset = "5vh",
+    defaultHighRes = false,
   } = $props()
 
   // Component state using Svelte 5 syntax
@@ -201,14 +202,17 @@
     if (shaka && shaka.Player && shaka.Player.isBrowserSupported()) {
       log("Using Shaka player")
       playbackMode = "shaka"
+      dispatch("playbackmode", { mode: "shaka" })
       initShakaPlayer()
     } else if (Hls.isSupported()) {
       log("Using HLS player")
       playbackMode = "hls"
+      dispatch("playbackmode", { mode: "hls" })
       initHLSPlayer()
     } else if (videoElement.canPlayType("video/mp4")) {
       log("Using standard MP4 player")
       playbackMode = "mp4"
+      dispatch("playbackmode", { mode: "mp4" })
       initStandardPlayer()
     } else {
       log("No supported video format found", "error")
@@ -218,10 +222,37 @@
   function initHLSPlayer() {
     if (Hls.isSupported()) {
       const hls = new Hls()
+      
+      // Configure for high resolution if defaultHighRes is enabled
+      if (defaultHighRes) {
+        log("Configuring HLS for high-resolution playback")
+        // Disable adaptive bitrate to force highest quality
+        hls.config.abr = {
+          enabled: false,
+        }
+        // Start with highest quality level (-1 means highest)
+        hls.config.startLevel = -1
+        // Set a high default bandwidth estimate to encourage high quality
+        hls.config.abrEwmaDefaultEstimate = 10000000 // 10 Mbps
+      }
+      
       hls.loadSource(`${path}/hls/${src}/master.m3u8`)
       hls.attachMedia(videoElement)
 
-      if (srt) {
+      // After manifest is loaded, ensure we're on the highest level if defaultHighRes is enabled
+      if (defaultHighRes) {
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          const levels = hls.levels
+          if (levels && levels.length > 0) {
+            // Find the highest quality level
+            const highestLevel = levels.length - 1
+            hls.currentLevel = highestLevel
+            log(`HLS: Set to highest quality level ${highestLevel} (${levels[highestLevel].height}p)`)
+          }
+        })
+      }
+
+      if (srt && srt.trim() && srt.trim() !== "null" && srt.trim() !== "undefined") {
         loadCaptions()
       }
 
@@ -236,18 +267,54 @@
   async function initShakaPlayer() {
     player = new shaka.Player()
 
+    // Configure for high resolution if defaultHighRes is enabled
+    if (defaultHighRes) {
+      log("Configuring Shaka for high-resolution playback")
+      player.configure({
+        abr: {
+          enabled: false, // Disable adaptive bitrate to force highest quality
+        },
+        streaming: {
+          bufferingGoal: 10, // Increase buffering goal for smoother high-res playback
+          rebufferingGoal: 5,
+        },
+      })
+    }
+
     try {
       await player.attach(videoElement)
       await player.load(`${path}/dash/${src}/manifest.mpd`)
       log("Loaded Shaka video")
 
-      if (srt) {
-        await player.addTextTrackAsync(srt, "en", "subtitles", "text/vtt")
-        const textTracks = player.getTextTracks()
+      // After manifest loads, ensure we're on the highest quality if defaultHighRes is enabled
+      if (defaultHighRes) {
+        const variants = player.getVariantTracks()
+        if (variants && variants.length > 0) {
+          // Find the variant with the highest resolution
+          const highestVariant = variants.reduce((prev, current) => {
+            const prevHeight = prev.height || 0
+            const currentHeight = current.height || 0
+            return currentHeight > prevHeight ? current : prev
+          })
+          player.selectVariantTrack(highestVariant, true)
+          log(`Shaka: Set to highest quality variant (${highestVariant.height}p, ${highestVariant.bandwidth}bps)`)
+        }
+      }
 
-        if (textTracks.length > 0) {
-          player.selectTextTrack(textTracks[0])
-          player.setTextTrackVisibility(true)
+      if (srt && srt.trim() && srt.trim() !== "null" && srt.trim() !== "undefined") {
+        try {
+          await player.addTextTrackAsync(srt, "en", "subtitles", "text/vtt")
+          const textTracks = player.getTextTracks()
+
+          if (textTracks.length > 0) {
+            player.selectTextTrack(textTracks[0])
+            // Respect the showCaptions prop instead of always showing
+            player.setTextTrackVisibility(showCaptions)
+            console.log("Shaka caption track loaded successfully")
+          }
+        } catch (captionError) {
+          console.error("Error loading Shaka caption track:", captionError, "URL:", srt)
+          // Don't fail the whole video if captions fail
         }
       }
     } catch (error) {
@@ -266,7 +333,7 @@
       log("Standard video error", "error")
     })
 
-    if (srt) {
+    if (srt && srt.trim() && srt.trim() !== "null" && srt.trim() !== "undefined") {
       loadCaptions()
     }
   }
@@ -274,16 +341,96 @@
   function loadCaptions() {
     // Do not add native <track> when using Shaka; Shaka manages its own text overlay
     if (playbackMode === "shaka") return
+    
+    // Validate srt URL before attempting to load
+    if (!srt || !srt.trim()) {
+      console.warn("No caption URL provided")
+      return
+    }
+    
     // If a track already exists, don't duplicate
     const existing = Array.from(videoElement?.querySelectorAll("track") || [])
-    if (existing.length === 0) {
+    if (existing.length === 0 && videoElement) {
+      // Verify the URL is valid before creating the track
+      const trackUrl = srt.trim()
+      console.log(`Loading caption track from: ${trackUrl}`)
+      
       const track = document.createElement("track")
       track.kind = "subtitles"
       track.label = "English"
       track.srclang = "en"
-      track.src = srt
-      track.default = true
+      track.src = trackUrl
+      track.default = false // Don't set as default, we'll control visibility via showCaptions
+      
+      // Set mode based on showCaptions prop when track loads
+      track.addEventListener("load", () => {
+        if (track.track && track.track.cues) {
+          track.mode = showCaptions ? "showing" : "hidden"
+          console.log(`Caption track loaded successfully, mode set to: ${track.mode}`)
+        } else {
+          console.warn("Caption track loaded but no cues found")
+        }
+      })
+      
+      // Improved error handling
+      track.addEventListener("error", (e) => {
+        const error = track.error
+        let errorMessage = "Unknown error"
+        
+        if (error) {
+          switch (error.code) {
+            case 1: // MEDIA_ERR_ABORTED
+              errorMessage = "Caption loading aborted"
+              break
+            case 2: // MEDIA_ERR_NETWORK
+              errorMessage = "Network error loading captions"
+              break
+            case 3: // MEDIA_ERR_DECODE
+              errorMessage = "Caption file decode error"
+              break
+            case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
+              errorMessage = "Caption format not supported"
+              break
+            default:
+              errorMessage = `Error code: ${error.code}`
+          }
+        }
+        
+        console.error(`Caption track error for ${trackUrl}: ${errorMessage}`, {
+          error,
+          track,
+          url: trackUrl
+        })
+        
+        // Remove the failed track to avoid confusion
+        if (track.parentNode) {
+          track.parentNode.removeChild(track)
+        }
+      })
+      
       videoElement.appendChild(track)
+      
+      // On mobile, tracks might need the video to be loaded first
+      if (application.isMobile && videoElement.readyState < 2) {
+        videoElement.addEventListener("loadedmetadata", () => {
+          const tracks = videoElement.textTracks || []
+          const lastTrack = tracks[tracks.length - 1]
+          if (lastTrack && lastTrack.kind === "subtitles") {
+            lastTrack.mode = showCaptions ? "showing" : "hidden"
+            console.log(`Mobile: Set track mode to: ${lastTrack.mode} after metadata load`)
+          }
+        }, { once: true })
+      } else {
+        // Set mode immediately if video is already loaded
+        setTimeout(() => {
+          const tracks = videoElement.textTracks || []
+          const lastTrack = tracks[tracks.length - 1]
+          if (lastTrack && lastTrack.kind === "subtitles") {
+            lastTrack.mode = showCaptions ? "showing" : "hidden"
+            console.log(`Set track mode to: ${lastTrack.mode}`)
+          }
+        }, 100)
+      }
     }
   }
 
@@ -352,6 +499,16 @@
       }
       const onCanPlay = () => {
         dispatch("canplay", { vid })
+        // On mobile, text tracks may only be available after canplay
+        if (playbackMode !== "shaka" && videoElement.textTracks) {
+          const tracks = videoElement.textTracks || []
+          for (let i = 0; i < tracks.length; i++) {
+            const track = videoElement.textTracks[i]
+            if (track.kind === "subtitles" || track.kind === "captions") {
+              track.mode = showCaptions ? "showing" : "hidden"
+            }
+          }
+        }
       }
       const onTimeUpdate = (e) => {
         const el = e?.target
@@ -362,12 +519,30 @@
           duration: el.duration,
         })
       }
+      const onLoadedMetadata = () => {
+        // Text tracks are available after metadata loads, especially on mobile
+        if (playbackMode !== "shaka" && videoElement.textTracks) {
+          const tracks = videoElement.textTracks || []
+          for (let i = 0; i < tracks.length; i++) {
+            const track = videoElement.textTracks[i]
+            if (track.kind === "subtitles" || track.kind === "captions") {
+              // Force mode change on mobile - sometimes needs multiple attempts
+              track.mode = "hidden" // Reset first
+              setTimeout(() => {
+                track.mode = showCaptions ? "showing" : "hidden"
+                console.log(`Caption track ${i} mode set to: ${track.mode} on mobile`)
+              }, 50)
+            }
+          }
+        }
+      }
 
       videoElement.addEventListener("play", onPlay)
       videoElement.addEventListener("pause", onPause)
       videoElement.addEventListener("ended", onEnded)
       videoElement.addEventListener("loadeddata", onLoadedData)
       videoElement.addEventListener("canplay", onCanPlay)
+      videoElement.addEventListener("loadedmetadata", onLoadedMetadata)
       videoElement.addEventListener("timeupdate", onTimeUpdate)
 
       loaded = true
@@ -384,6 +559,7 @@
         onEnded,
         onLoadedData,
         onCanPlay,
+        onLoadedMetadata,
         onTimeUpdate,
       }
     }
@@ -399,6 +575,7 @@
         onEnded,
         onLoadedData,
         onCanPlay,
+        onLoadedMetadata,
         onTimeUpdate,
       } = videoElement.__streamingHandlers
       videoElement.removeEventListener("play", onPlay)
@@ -406,6 +583,7 @@
       videoElement.removeEventListener("ended", onEnded)
       videoElement.removeEventListener("loadeddata", onLoadedData)
       videoElement.removeEventListener("canplay", onCanPlay)
+      videoElement.removeEventListener("loadedmetadata", onLoadedMetadata)
       videoElement.removeEventListener("timeupdate", onTimeUpdate)
       delete videoElement.__streamingHandlers
     }
@@ -444,16 +622,29 @@
     } else {
       // Handle native/HLS text tracks
       if (videoElement) {
-        // Ensure a track exists if captions are requested and srt provided
-        if (showCaptions && srt) {
+        // Ensure a track exists if srt is provided and valid (regardless of showCaptions state)
+        if (srt && srt.trim() && srt.trim() !== "null" && srt.trim() !== "undefined") {
           loadCaptions()
         }
-        const tracks = videoElement.textTracks || []
-        for (let i = 0; i < tracks.length; i++) {
-          const track = videoElement.textTracks[i]
-          if (track.kind === "subtitles" || track.kind === "captions") {
-            track.mode = showCaptions ? "showing" : "hidden"
+        // Update all existing tracks - with retry for mobile
+        const updateTracks = () => {
+          const tracks = videoElement.textTracks || []
+          for (let i = 0; i < tracks.length; i++) {
+            const track = videoElement.textTracks[i]
+            if (track.kind === "subtitles" || track.kind === "captions") {
+              const targetMode = showCaptions ? "showing" : "hidden"
+              if (track.mode !== targetMode) {
+                track.mode = targetMode
+                console.log(`Set track ${i} mode to: ${targetMode}`)
+              }
+            }
           }
+        }
+        updateTracks()
+        // Retry on mobile devices where tracks might not be ready immediately
+        if (application.isMobile) {
+          setTimeout(updateTracks, 100)
+          setTimeout(updateTracks, 500)
         }
       }
     }
@@ -461,13 +652,13 @@
 </script>
 
 {#if testing}
-  <div class="log-container">
+  <!--div class="log-container">
     {#each logMessages as message}
       <div class="log-message {message.type}">
         {message.text}
       </div>
     {/each}
-  </div>
+  </div-->
 {/if}
 
 <div class="video-wrapper" style={"--captions-offset: " + captionsOffset}>
@@ -553,12 +744,15 @@
       1px -1px 0px #000,
       -1px 1px 0px #000,
       1px 1px 0px #000;
+    white-space: pre-wrap;
+    word-wrap: break-word;
   }
 
   @media (max-width: 480px) {
     video::cue {
-      font-size: 14px;
+      font-size: 16px;
       padding: 0 20px;
+      line-height: 1.4;
     }
   }
 
@@ -573,6 +767,24 @@
   /* Move native captions up (WebKit/Blink) */
   video::-webkit-media-text-track-display {
     transform: translateY(calc(-1 * var(--captions-offset, 5vh)));
+    position: relative;
+    z-index: 1000;
+  }
+
+  /* Mobile-specific caption positioning */
+  @media (max-width: 768px) {
+    video::-webkit-media-text-track-display {
+      transform: translateY(calc(-1 * var(--captions-offset, 8vh)));
+      bottom: auto;
+    }
+  }
+
+  /* Ensure captions are visible on mobile Safari */
+  @supports (-webkit-touch-callout: none) {
+    video::-webkit-media-text-track-display {
+      position: relative !important;
+      z-index: 1000 !important;
+    }
   }
 
   /* Shaka text overlay (if used) */
@@ -584,6 +796,7 @@
     pointer-events: none;
     text-align: center;
     padding: 0 5vw;
+    z-index: 1000 !important;
   }
   :global(.shaka-text-container .shaka-text) {
     color: #ffbc01 !important;
@@ -594,5 +807,16 @@
       1px 1px 0px #000;
     font-size: clamp(12px, 2.6vw, 26px) !important;
     line-height: 1.3;
+  }
+
+  /* Mobile-specific Shaka caption positioning */
+  @media (max-width: 768px) {
+    :global(.shaka-text-container) {
+      bottom: var(--captions-offset, 10vh) !important;
+      padding: 0 4vw;
+    }
+    :global(.shaka-text-container .shaka-text) {
+      font-size: clamp(14px, 4vw, 20px) !important;
+    }
   }
 </style>

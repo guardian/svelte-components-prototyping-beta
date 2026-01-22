@@ -10,7 +10,6 @@
   import { showCaptions, isMuted, toggleCaptions, toggleMuted } from '$lib/stores/videoScroll.js'
 
   let application = null;
-  let episode = 4; //
   let videos = $state([])
   let active = $state(0)
   let overlay = $state(false)
@@ -19,9 +18,10 @@
   let progress = $state(0)
   let colour = $state('#c70000')
   let imagePath = $state('https://interactive.guim.co.uk/atoms/2020/02/frontline-episode-4/v/1582496332421/assets')
+  let playbackMode = $state('unknown')
 
   // Constants
-  const DATA_URL = 'https://interactive.guim.co.uk/docsdata/1w0ugQ5gR8nrSXogJ-foN1IEp9vMzKQ1hMVBMeaddG_k.json'
+  const DATA_URL = 'https://interactive.guim.co.uk/docsdata/1Z0BmZ-kxGMKZc8fXJIhBbVgBwFuw9B7jl1qfG8j39kk.json'
   const OBSERVER_OPTIONS = {
     root: null,
     rootMargin: '-30% 0px -30% 0px',
@@ -43,12 +43,14 @@
     console.log('Available video IDs:', videos.map(v => v.vid))
     const activeVideo = videos.find(v => v.vid === active)
     console.log('Active video found:', activeVideo)
+    // Reset playback mode when active video changes
+    playbackMode = 'unknown'
   })
 
   async function loadVideos() {
     try {
       const data = await getJson(DATA_URL)
-      let film = data.sheets[`episode-${episode}`]
+      let film = data.sheets.videos
       film.forEach(video => {
         console.log(`Raw video ${video.vid} data:`, video);
         video.vid = +video.vid
@@ -75,7 +77,9 @@
         video.overlay = video.overlay === 'TRUE' ? true : false ; 
         video.display = 'standard'
         video.hasCaptions = video.subs != '' ? true : false ; 
+        video.defaultHighRes = video.defaultHighRes === 'TRUE' ? true : false ; 
         console.log(`Video ${video.vid} caption data:`, { subs: video.subs, hasCaptions: video.hasCaptions })
+        console.log(`Video ${video.vid} defaultHighRes:`, video.defaultHighRes)
       })
       videos = film
       console.log('Videos loaded:', videos)
@@ -108,10 +112,11 @@
   }
 
   onMount(async () => {
-    await loadVideos()
+    
     // Orientation detection for serving portrait vs landscape URLs
     orientationMql = window.matchMedia('(orientation: portrait)')
     isPortrait = orientationMql.matches
+    await loadVideos()
     if (orientationMql.addEventListener) {
       orientationMql.addEventListener('change', handleOrientationChange)
     } else if (orientationMql.addListener) {
@@ -194,12 +199,13 @@
 
       {#if testing}
       <div style="position: fixed; top: 10px; left: 10px; background: red; color: white; padding: 10px; z-index: 10000; font-family: monospace;">
-        Active: {active}
+        Active: {active}<br />
+        Player: {playbackMode}
       </div>
       {/if}
       
       {#if videos.length > 0}
-          <Videos {videos} {active} {scrollToNextBlock} {colour} url={isPortrait ? 'https://interactive.guim.co.uk/embed/aus/2025/06/frontline-mobile' : 'https://interactive.guim.co.uk/embed/aus/2025/06/frontline'} />
+          <Videos {videos} {active} {scrollToNextBlock} {colour} {testing} onPlaybackMode={(mode) => playbackMode = mode} url={isPortrait ? 'https://interactive.guim.co.uk/embed/aus/2025/06/frontline-mobile' : 'https://interactive.guim.co.uk/embed/aus/2025/06/frontline'} />
       {/if}
 
       <div class="blocks">
