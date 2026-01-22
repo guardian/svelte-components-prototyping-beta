@@ -15,7 +15,7 @@
   let active = $state(0)
   let overlay = $state(false)
   let observer = $state(null);
-  let testing = $state(false)
+  let testing = $state(true)
   let progress = $state(0)
   let colour = $state('#c70000')
   let imagePath = $state('https://interactive.guim.co.uk/atoms/2020/02/frontline-episode-4/v/1582496332421/assets')

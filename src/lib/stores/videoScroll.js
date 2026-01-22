@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store'
 
 // Audio and caption settings stores
-export const showCaptions = writable(false)
+export const showCaptions = writable(true)
 export const isMuted = writable(true)
 
 // Video playback state store
