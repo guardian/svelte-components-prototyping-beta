@@ -234,7 +234,9 @@
           />
         </div>
       {:else}
-        <div class="video-wrapper {video.display}"></div>
+        <div class="video-wrapper {video.display}">
+          <video poster={`${url}/${video.src}.jpg`}></video>
+        </div>
       {/if}
     </div>
   {/each}
