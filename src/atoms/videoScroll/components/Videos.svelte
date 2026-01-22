@@ -257,7 +257,7 @@
       right: 0;
       bottom: 0;
       left: 0;
-      background-image: linear-gradient(to right, #2f262e, transparent);
+      background-image: linear-gradient(to right, rgba(0, 0, 0, 0.7), transparent);
     }
 
     .cinema-foreground {
@@ -275,13 +275,13 @@
       }
       to {
         z-index: 10;
-        opacity: 1;
+        opacity: 0.7;
       }
     }
     @keyframes back {
       from {
         z-index: 10;
-        opacity: 1;
+        opacity: 0.7;
       }
       to {
         z-index: -10;
@@ -385,7 +385,7 @@
     left: 0;
     right: 0;
     z-index: 1;
-    opacity: 1; // Visible when lunar is active
+    opacity: 0.7; // Visible when lunar is active
 
     &:before {
       content: "";
@@ -400,7 +400,7 @@
 
   @keyframes daytime {
     from {
-      opacity: 0.9;
+      opacity: 0.7;
     }
     to {
       opacity: 0;
@@ -411,7 +411,7 @@
       opacity: 0;
     }
     to {
-      opacity: 0.9;
+      opacity: 0.7;
     }
   }
 
@@ -435,7 +435,7 @@
       right: 0;
       bottom: 0;
       left: 0;
-      background-image: linear-gradient(to top, black, transparent);
+      background-image: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
     }
   }
 
@@ -449,7 +449,7 @@
       right: 0;
       bottom: 0;
       left: 0;
-      background-image: linear-gradient(to top, black, transparent);
+      background-image: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
     }
   }
 </style>
