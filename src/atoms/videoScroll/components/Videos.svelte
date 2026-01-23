@@ -27,13 +27,16 @@
   let activeVideoHasAudio = $state(false)
   let mounted = $state(false)
   let activePlaybackMode = $state("unknown")
+  let canvasElement
+  let canvasContext
+  let animationFrameId = null
 
   $inspect(videos)
 
   // Preload all poster images
   function preloadPosterImages() {
     if (!videos || videos.length === 0) return
-    
+
     videos.forEach((video) => {
       const posterUrl = `${url}/${video.src}.jpg`
       const img = new Image()
@@ -181,6 +184,115 @@
       }
     }
   }
+
+  // Initialize canvas context
+  $effect(() => {
+    if (canvasElement) {
+      canvasContext = canvasElement.getContext("2d")
+      // Set canvas size to match container
+      canvasElement.width = canvasElement.offsetWidth
+      canvasElement.height = canvasElement.offsetHeight
+    }
+  })
+
+  // Update canvas when active video changes
+  $effect(() => {
+    // Cancel any pending animation frame
+    if (animationFrameId !== null) {
+      cancelAnimationFrame(animationFrameId)
+      animationFrameId = null
+    }
+
+    if (active !== undefined && canvasContext) {
+      // Small delay to ensure video element is rendered
+      setTimeout(() => {
+        drawVideoFrameToCanvas()
+      }, 100)
+    }
+  })
+
+  // Function to draw current video frame to canvas
+  function drawVideoFrameToCanvas() {
+    if (!canvasContext || !canvasElement) return
+
+    // Find the active video element
+    const activePanel = document.querySelector(`.panel[data-id="${active}"]`)
+    if (!activePanel) return
+
+    const videoElement = activePanel.querySelector("video")
+    if (!videoElement || videoElement.readyState < 2) return // Video not ready
+
+    // Update canvas size if needed
+    const containerWidth = canvasElement.offsetWidth
+    const containerHeight = canvasElement.offsetHeight
+
+    if (
+      canvasElement.width !== containerWidth ||
+      canvasElement.height !== containerHeight
+    ) {
+      canvasElement.width = containerWidth
+      canvasElement.height = containerHeight
+    }
+
+    // Draw the video frame to canvas with proper aspect ratio
+    try {
+      const videoWidth = videoElement.videoWidth || videoElement.offsetWidth
+      const videoHeight = videoElement.videoHeight || videoElement.offsetHeight
+
+      if (videoWidth > 0 && videoHeight > 0) {
+        // Calculate aspect ratios
+        const videoAspect = videoWidth / videoHeight
+        const canvasAspect = containerWidth / containerHeight
+
+        let drawWidth, drawHeight, drawX, drawY
+
+        if (videoAspect > canvasAspect) {
+          // Video is wider - fit to height
+          drawHeight = containerHeight
+          drawWidth = drawHeight * videoAspect
+          drawX = (containerWidth - drawWidth) / 2
+          drawY = 0
+        } else {
+          // Video is taller - fit to width
+          drawWidth = containerWidth
+          drawHeight = drawWidth / videoAspect
+          drawX = 0
+          drawY = (containerHeight - drawHeight) / 2
+        }
+
+        // Clear canvas
+        canvasContext.fillStyle = "#000000"
+        canvasContext.fillRect(0, 0, containerWidth, containerHeight)
+
+        // Draw video frame
+        canvasContext.drawImage(
+          videoElement,
+          drawX,
+          drawY,
+          drawWidth,
+          drawHeight,
+        )
+      }
+    } catch (error) {
+      // Silently handle CORS or other drawing errors
+      console.warn("Error drawing video frame to canvas:", error)
+    }
+  }
+
+  // Update canvas on video timeupdate using requestAnimationFrame
+  function handleVideoTimeUpdate(videoId, event) {
+    if (videoId === active) {
+      // Cancel any pending animation frame
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId)
+      }
+      // Schedule canvas update
+      animationFrameId = requestAnimationFrame(() => {
+        drawVideoFrameToCanvas()
+        animationFrameId = null
+      })
+    }
+  }
 </script>
 
 <Nav
@@ -222,7 +334,8 @@
             on:play={() => handleVideoPlay(video.vid)}
             on:pause={() => handleVideoPause(video.vid)}
             on:ended={() => handleVideoEnded(video.vid)}
-            on:playbackmode={(e) => handlePlaybackMode(video.vid, e.detail?.mode)}
+            on:playbackmode={(e) =>
+              handlePlaybackMode(video.vid, e.detail?.mode)}
             on:timeupdate={(e) => {
               if (video.vid === active && window.navApi) {
                 const { currentTime, duration } = e.detail || {}
@@ -230,16 +343,18 @@
                   window.navApi.updateVideoProgress(currentTime, duration)
                 }
               }
+              handleVideoTimeUpdate(video.vid, e)
             }}
           />
         </div>
       {:else}
-        <div class="video-wrapper {video.display}">
-          <video poster={`${url}/${video.src}.jpg`}></video>
-        </div>
+        <div class="video-wrapper {video.display}"></div>
       {/if}
     </div>
   {/each}
+  <div class="background-panel">
+    <canvas bind:this={canvasElement}></canvas>
+  </div>
 </div>
 
 <style lang="scss">
@@ -259,7 +374,11 @@
       right: 0;
       bottom: 0;
       left: 0;
-      background-image: linear-gradient(to right, rgba(0, 0, 0, 0.7), transparent);
+      background-image: linear-gradient(
+        to right,
+        rgba(0, 0, 0, 1),
+        transparent
+      );
     }
 
     .cinema-foreground {
@@ -277,13 +396,13 @@
       }
       to {
         z-index: 10;
-        opacity: 0.7;
+        opacity: 1;
       }
     }
     @keyframes back {
       from {
         z-index: 10;
-        opacity: 0.7;
+        opacity: 1;
       }
       to {
         z-index: -10;
@@ -329,6 +448,33 @@
 
     .panel:last-child {
       opacity: 0.6;
+    }
+
+    .background-panel {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: black;
+      z-index: 1;
+
+      canvas {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+
+        &:before {
+          content: "";
+          position: absolute;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          left: 0;
+          background-image: linear-gradient(to top, black, transparent);
+        }
+      }
     }
 
     video::cue {
@@ -387,7 +533,7 @@
     left: 0;
     right: 0;
     z-index: 1;
-    opacity: 0.7; // Visible when lunar is active
+    opacity: 1; // Visible when lunar is active
 
     &:before {
       content: "";
@@ -402,7 +548,7 @@
 
   @keyframes daytime {
     from {
-      opacity: 0.7;
+      opacity: 1;
     }
     to {
       opacity: 0;
@@ -413,7 +559,7 @@
       opacity: 0;
     }
     to {
-      opacity: 0.7;
+      opacity: 1;
     }
   }
 
@@ -437,7 +583,7 @@
       right: 0;
       bottom: 0;
       left: 0;
-      background-image: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+      background-image: linear-gradient(to top, rgba(0, 0, 0, 1), transparent);
     }
   }
 
@@ -451,7 +597,7 @@
       right: 0;
       bottom: 0;
       left: 0;
-      background-image: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+      background-image: linear-gradient(to top, rgba(0, 0, 0, 1), transparent);
     }
   }
 </style>
