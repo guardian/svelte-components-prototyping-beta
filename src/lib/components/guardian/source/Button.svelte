@@ -1,6 +1,6 @@
 <script>
-  import "@guardian/interactive-source-components/button.css"
-  import Icons from "$lib/components/guardian/source/Icons.svelte"
+  //import "@guardian/interactive-source-components/button.css"
+  //import Icons from "$lib/components/guardian/source/Icons.svelte"
 
   let { label = "Click me", icon = "", variant = "default", iconSize = "medium", onClick = () => {} } = $props();
 
@@ -28,7 +28,7 @@
 
 <button class="src-button src-button--{variant}" onclick={onClick}>
   {#if hasIcon}
-    <Icons icon={icon} size={iconSize} />
+    <!--- Icons icon={icon} size={iconSize} /> -->
   {/if}
   {label}
 </button>

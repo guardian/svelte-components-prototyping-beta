@@ -7,7 +7,7 @@
     showCaptions,
     isMuted,
     isVideoPlaying,
-  } from "$lib/stores/videoScroll.js"
+  } from "$lib/stores/videoScroll.svelte.js"
 
   let {
     videos,
@@ -97,7 +97,7 @@
         `Initializing playback state for video ${activeVideo.vid}, autoplay: ${activeVideo.autoplay}`,
       )
       // Set initial state based on autoplay setting
-      import("$lib/stores/videoScroll.js").then(({ setVideoPlaying }) => {
+      import("$lib/stores/videoScroll.svelte.js").then(({ setVideoPlaying }) => {
         setVideoPlaying(activeVideo.autoplay)
       })
     }
@@ -109,7 +109,7 @@
     // Autoplay behavior managed by Video component; ensure store reflects non-autoplay initial state
     const video = videos.find((v) => v.vid === videoId)
     if (videoId === active) {
-      import("$lib/stores/videoScroll.js").then(({ setVideoPlaying }) => {
+      import("$lib/stores/videoScroll.svelte.js").then(({ setVideoPlaying }) => {
         setVideoPlaying(!!video?.autoplay)
       })
     }
@@ -129,7 +129,7 @@
     console.log(`Video ${videoId} can play`)
     if (videoId === active) {
       const video = videos.find((v) => v.vid === videoId)
-      import("$lib/stores/videoScroll.js").then(({ setVideoPlaying }) => {
+      import("$lib/stores/videoScroll.svelte.js").then(({ setVideoPlaying }) => {
         setVideoPlaying(!!video?.autoplay)
       })
     }
@@ -139,7 +139,7 @@
   function handleVideoPlay(videoId) {
     console.log(`Video ${videoId} started playing`)
     if (videoId === active) {
-      import("$lib/stores/videoScroll.js").then(({ setVideoPlaying }) => {
+      import("$lib/stores/videoScroll.svelte.js").then(({ setVideoPlaying }) => {
         setVideoPlaying(true)
       })
     }
@@ -149,7 +149,7 @@
   function handleVideoPause(videoId) {
     console.log(`Video ${videoId} paused`)
     if (videoId === active) {
-      import("$lib/stores/videoScroll.js").then(({ setVideoPlaying }) => {
+      import("$lib/stores/videoScroll.svelte.js").then(({ setVideoPlaying }) => {
         setVideoPlaying(false)
       })
     }
@@ -159,7 +159,7 @@
   function handleVideoEnded(videoId) {
     console.log(`Video ${videoId} ended`)
     if (videoId === active) {
-      import("$lib/stores/videoScroll.js").then(({ setVideoPlaying }) => {
+      import("$lib/stores/videoScroll.svelte.js").then(({ setVideoPlaying }) => {
         setVideoPlaying(false)
       })
 
@@ -320,8 +320,14 @@
             path={url}
             placeholder={`${url}/${video.src}.jpg`}
             srt={video.hasCaptions && video.subs
-              ? `${url}/${video.subs}`
+              ? `${url}/${video.subs}.srt`
               : null}
+            captionVtt={video.hasCaptions && video.subs
+                    ? `${url}/${video.subs}.vtt`
+                    : null}
+            captionTtml={video.hasCaptions && video.subs
+                    ? `${url}/${video.subs}.ttml`
+                    : null}
             isActive={video.vid === active}
             shouldPlay={$isVideoPlaying && video.vid === active}
             loop={video.loop}

@@ -7,7 +7,7 @@
   import Skip from './Skip.svelte'
   import Graphic from './Graphic.svelte'
   import { getJson } from '$lib/helpers/guardian/toolbelt'
-  import { showCaptions, isMuted, toggleCaptions, toggleMuted } from '$lib/stores/videoScroll.js'
+  import { showCaptions, isMuted, toggleCaptions, toggleMuted } from '$lib/stores/videoScroll.svelte.js'
 
   let application = null;
   let videos = $state([])

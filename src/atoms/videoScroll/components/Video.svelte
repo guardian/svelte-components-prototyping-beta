@@ -10,6 +10,8 @@
     path = "https://interactive.guim.co.uk/embed/aus/2024/07/leaving-gaza",
     placeholder = "https://interactive.guim.co.uk/embed/aus/2024/07/leaving-gaza/coachella-wide.jpg",
     srt = "https://interactive.guim.co.uk/embed/aus/2024/07/leaving-gaza/coachella-wide.vtt",
+    captionVtt = null, // Optional explicit VTT URL
+    captionTtml = null, // Optional explicit TTML URL
     testing = false,
     isActive = false,
     shouldPlay = false,
@@ -19,7 +21,6 @@
     captionsOffset = "5vh",
     defaultHighRes = false,
   } = $props()
-
   // Component state using Svelte 5 syntax
   let videoElement
   let player
@@ -33,8 +34,31 @@
   const dispatch = createEventDispatcher()
 
   let playbackMode = $state("unknown") // 'shaka' | 'hls' | 'mp4'
-  let shakaCaptionsConfigured = $state(false) // Flag to prevent duplicate caption setup
-  let shakaCaptionHandler = null // Store caption configuration handler for cleanup
+  let captionTrackLoaded = $state(false) // Simple flag: are captions loaded?
+
+  // Get caption URL - prefer explicit VTT, fallback to srt prop
+  function getCaptionUrl() {
+    if (captionVtt) return captionVtt.trim()
+    if (srt && srt.trim() !== "null" && srt.trim() !== "undefined") {
+      // If srt has .srt extension, try .vtt instead
+      const url = srt.trim()
+      if (url.endsWith('.srt')) {
+        return url.replace(/\.srt$/i, '.vtt')
+      }
+      return url
+    }
+    return null
+  }
+
+  // Get TTML URL for Shaka (try explicit, then derive from base URL)
+  function getTtmlUrl() {
+    if (captionTtml) return captionTtml
+    if (srt) {
+      const baseUrl = srt.replace(/\.(vtt|srt)$/i, '')
+      return `${baseUrl}.ttml`
+    }
+    return null
+  }
 
   // Breakpoint configurations
   const PIXEL_BREAKPOINTS = [
@@ -185,22 +209,6 @@
   // Video player initialization
   function initializeVideoPlayer() {
 
-    /*
-    if (isAndroid || isIOS) {
-      if (isAndroid) {
-        log("Using Shaka player for Android")
-        playbackMode = "shaka"
-        initShakaPlayer()
-      } else {
-        log("Using standard player for iOS")
-        playbackMode = "mp4"
-        initStandardPlayer()
-      }
-      return
-    }
-
-    */
-
     if (shaka && shaka.Player && shaka.Player.isBrowserSupported()) {
       log("Using Shaka player")
       playbackMode = "shaka"
@@ -254,8 +262,9 @@
         })
       }
 
-      if (srt && srt.trim() && srt.trim() !== "null" && srt.trim() !== "undefined") {
-        loadCaptions()
+      const captionUrl = getCaptionUrl()
+      if (captionUrl) {
+        loadNativeCaptions(captionUrl)
       }
 
       hls.on(Hls.Events.ERROR, (event, data) => {
@@ -269,16 +278,20 @@
   async function initShakaPlayer() {
     player = new shaka.Player()
 
+    // Configure Shaka for text tracks - use CSS mode to get custom rendering
+    player.configure({
+      streaming: {
+        bufferingGoal: defaultHighRes ? 10 : 5,
+        rebufferingGoal: defaultHighRes ? 5 : 2,
+      }
+    })
+
     // Configure for high resolution if defaultHighRes is enabled
     if (defaultHighRes) {
       log("Configuring Shaka for high-resolution playback")
       player.configure({
         abr: {
           enabled: false, // Disable adaptive bitrate to force highest quality
-        },
-        streaming: {
-          bufferingGoal: 10, // Increase buffering goal for smoother high-res playback
-          rebufferingGoal: 5,
         },
       })
     }
@@ -303,92 +316,24 @@
         }
       }
 
-      // Handle captions for Shaka player - configure once after manifest loads
-      const configureShakaCaptions = async () => {
-        if (shakaCaptionsConfigured) {
-          console.log("Shaka captions already configured, skipping")
-          return
-        }
-        
-        try {
-          // Small delay to ensure tracks are fully parsed
-          await new Promise(resolve => setTimeout(resolve, 300))
-          
-          // Check if manifest already includes text tracks
-          const manifestTracks = player.getTextTracks()
-          const hasManifestTracks = manifestTracks && manifestTracks.length > 0
-          
-          if (hasManifestTracks) {
-            // Use tracks from manifest, don't add external track
-            console.log(`Shaka manifest includes ${manifestTracks.length} text track(s)`)
-            
-            // Deselect all tracks first to prevent duplicates
-            manifestTracks.forEach(track => {
-              try {
-                if (track.active) {
-                  // Shaka doesn't have a deselect method, so we'll just select the one we want
-                }
-              } catch (e) {
-                // Ignore errors
-              }
-            })
-            
-            // Select only the first track (this will automatically deselect others)
-            player.selectTextTrack(manifestTracks[0])
-            player.setTextTrackVisibility(showCaptions)
-            shakaCaptionsConfigured = true
-            console.log(`Selected manifest track: ${manifestTracks[0].language || 'en'}, visibility: ${showCaptions}`)
-          } else if (srt && srt.trim() && srt.trim() !== "null" && srt.trim() !== "undefined") {
-            // Only add external track if manifest doesn't have one
-            await player.addTextTrackAsync(srt, "en", "subtitles", "text/vtt")
-            const addedTracks = player.getTextTracks()
-            if (addedTracks && addedTracks.length > 0) {
-              // Find the external track we just added (it should be the newest one)
-              const externalTrack = addedTracks[addedTracks.length - 1]
-              
-              // Select only this track (will deselect any others)
-              player.selectTextTrack(externalTrack)
-              player.setTextTrackVisibility(showCaptions)
-              shakaCaptionsConfigured = true
-              console.log(`Added and selected external caption track, visibility: ${showCaptions}`)
-            }
-          } else {
-            // No captions available
-            player.setTextTrackVisibility(false)
-            shakaCaptionsConfigured = true
-          }
-        } catch (captionError) {
-          console.error("Error configuring Shaka caption tracks:", captionError)
-          shakaCaptionsConfigured = true // Set flag even on error to prevent retries
-        }
+      if (captionVtt) {
+        // Add the VTT text track
+        await player.addTextTrackAsync(captionVtt, 
+          'en',  // Language code for the subtitles
+          'subtitles',  // Kind of text track: 'caption', 'subtitle', 'descriptions', etc.
+          'text/vtt'); // MIME type for VTT files
       }
-      
-      // Store handler for cleanup
-      shakaCaptionHandler = configureShakaCaptions
-      
-      // Listen for when streaming starts (manifest is loaded)
-      player.addEventListener('streaming', configureShakaCaptions, { once: true })
-      
-      // Also listen for text track changes to ensure only one is active
-      const textTrackChangeHandler = () => {
-        const allTracks = player.getTextTracks()
-        const activeTracks = allTracks.filter(track => track.active)
-        if (activeTracks.length > 1) {
-          console.warn(`Multiple Shaka tracks active (${activeTracks.length}), keeping only the first`)
-          // Keep only the first active track
-          player.selectTextTrack(activeTracks[0])
-        }
+
+      const textTracks = player.getTextTracks();
+
+      if (textTracks.length > 0) {
+        player.selectTextTrack(textTracks[0]);
+        player.setTextTrackVisibility(true);
       }
-      player.addEventListener('texttrackchanged', textTrackChangeHandler)
+
+
       
-      // Store for cleanup
-      if (!videoElement.__shakaHandlers) {
-        videoElement.__shakaHandlers = []
-      }
-      videoElement.__shakaHandlers.push({
-        type: 'texttrackchanged',
-        handler: textTrackChangeHandler
-      })
+
     } catch (error) {
       console.error("Error loading video with Shaka Player:", error)
       log("Shaka player error, trying standard player")
@@ -405,105 +350,44 @@
       log("Standard video error", "error")
     })
 
-    if (srt && srt.trim() && srt.trim() !== "null" && srt.trim() !== "undefined") {
-      loadCaptions()
+    const captionUrl = getCaptionUrl()
+    if (captionUrl) {
+      loadNativeCaptions(captionUrl)
     }
   }
 
-  function loadCaptions() {
-    // Do not add native <track> when using Shaka; Shaka manages its own text overlay
-    if (playbackMode === "shaka") return
+  function loadNativeCaptions(captionUrl) {
+    if (playbackMode === "shaka" || !videoElement || !captionUrl) return
     
-    // Validate srt URL before attempting to load
-    if (!srt || !srt.trim()) {
-      console.warn("No caption URL provided")
+    // Check if track already exists
+    const existing = Array.from(videoElement.querySelectorAll("track") || [])
+    if (existing.length > 0) {
+      console.log("Native caption track already exists")
       return
     }
     
-    // If a track already exists, don't duplicate
-    const existing = Array.from(videoElement?.querySelectorAll("track") || [])
-    if (existing.length === 0 && videoElement) {
-      // Verify the URL is valid before creating the track
-      const trackUrl = srt.trim()
-      console.log(`Loading caption track from: ${trackUrl}`)
-      
-      const track = document.createElement("track")
-      track.kind = "subtitles"
-      track.label = "English"
-      track.srclang = "en"
-      track.src = trackUrl
-      track.default = false // Don't set as default, we'll control visibility via showCaptions
-      
-      // Set mode based on showCaptions prop when track loads
-      track.addEventListener("load", () => {
-        if (track.track && track.track.cues) {
-          track.mode = showCaptions ? "showing" : "hidden"
-          console.log(`Caption track loaded successfully, mode set to: ${track.mode}`)
-        } else {
-          console.warn("Caption track loaded but no cues found")
-        }
-      })
-      
-      // Improved error handling
-      track.addEventListener("error", (e) => {
-        const error = track.error
-        let errorMessage = "Unknown error"
-        
-        if (error) {
-          switch (error.code) {
-            case 1: // MEDIA_ERR_ABORTED
-              errorMessage = "Caption loading aborted"
-              break
-            case 2: // MEDIA_ERR_NETWORK
-              errorMessage = "Network error loading captions"
-              break
-            case 3: // MEDIA_ERR_DECODE
-              errorMessage = "Caption file decode error"
-              break
-            case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
-              errorMessage = "Caption format not supported"
-              break
-            default:
-              errorMessage = `Error code: ${error.code}`
-          }
-        }
-        
-        console.error(`Caption track error for ${trackUrl}: ${errorMessage}`, {
-          error,
-          track,
-          url: trackUrl
-        })
-        
-        // Remove the failed track to avoid confusion
-        if (track.parentNode) {
-          track.parentNode.removeChild(track)
-        }
-      })
-      
-      videoElement.appendChild(track)
-      
-      // On mobile, tracks might need the video to be loaded first
-      if (application.isMobile && videoElement.readyState < 2) {
-        videoElement.addEventListener("loadedmetadata", () => {
-          const tracks = videoElement.textTracks || []
-          const lastTrack = tracks[tracks.length - 1]
-          if (lastTrack && lastTrack.kind === "subtitles") {
-            lastTrack.mode = showCaptions ? "showing" : "hidden"
-            console.log(`Mobile: Set track mode to: ${lastTrack.mode} after metadata load`)
-          }
-        }, { once: true })
-      } else {
-        // Set mode immediately if video is already loaded
-        setTimeout(() => {
-          const tracks = videoElement.textTracks || []
-          const lastTrack = tracks[tracks.length - 1]
-          if (lastTrack && lastTrack.kind === "subtitles") {
-            lastTrack.mode = showCaptions ? "showing" : "hidden"
-            console.log(`Set track mode to: ${lastTrack.mode}`)
-          }
-        }, 100)
+    console.log("Loading native caption track:", captionUrl)
+    
+    const track = document.createElement("track")
+    track.kind = "subtitles"
+    track.label = "English"
+    track.srclang = "en"
+    track.src = captionUrl
+    track.default = false
+    
+    track.addEventListener("load", () => {
+      if (track.track) {
+        track.mode = showCaptions ? "showing" : "hidden"
+        captionTrackLoaded = true
+        console.log(`Native caption track loaded, mode: ${track.mode}`)
       }
-    }
+    })
+    
+    track.addEventListener("error", (e) => {
+      console.error("Failed to load caption track:", captionUrl, track.error)
+    })
+    
+    videoElement.appendChild(track)
   }
 
   // Event handlers
@@ -640,20 +524,9 @@
   onDestroy(() => {
     if (observer) observer.disconnect()
     if (player) {
-      // Remove event listeners before destroying
-      if (shakaCaptionHandler) {
-        player.removeEventListener('streaming', shakaCaptionHandler)
-      }
-      if (videoElement && videoElement.__shakaHandlers) {
-        videoElement.__shakaHandlers.forEach(({ type, handler }) => {
-          player.removeEventListener(type, handler)
-        })
-        delete videoElement.__shakaHandlers
-      }
       player.destroy()
     }
-    shakaCaptionsConfigured = false
-    shakaCaptionHandler = null
+    captionTrackLoaded = false
     if (videoElement && videoElement.__streamingHandlers) {
       const {
         onPlay,
@@ -689,104 +562,28 @@
     }
   })
 
-  // React to caption visibility changes
+  // React to caption visibility changes - simple and clean
+  // This effect runs when showCaptions or captionTrackLoaded changes
   $effect(() => {
-    // Handle Shaka captions visibility
-    if (playbackMode === "shaka") {
-      if (player && typeof player.setTextTrackVisibility === "function") {
-        // Handle hide case immediately - no need to check tracks
-        if (!showCaptions) {
-          player.setTextTrackVisibility(false)
-          console.log(`Shaka caption visibility set to: false (hiding captions)`)
-          return // Exit early for hide case
+    // Access both to make effect reactive to both
+    const visible = showCaptions
+    const loaded = captionTrackLoaded
+    
+    if (playbackMode === "shaka" && player) {
+      console.log("Setting Shaka caption visibility to:", visible)
+      player.setTextTrackVisibility(visible);
+    } else if (videoElement && videoElement.textTracks) {
+      // Native/HLS tracks - update mode
+      const tracks = Array.from(videoElement.textTracks)
+      let updated = false
+      tracks.forEach(track => {
+        if (track.kind === "subtitles" || track.kind === "captions") {
+          track.mode = visible ? "showing" : "hidden"
+          updated = true
         }
-        
-        // For show case, we need to ensure a track is selected
-        const textTracks = player.getTextTracks()
-        
-        if (textTracks && textTracks.length > 0) {
-          // Find all active tracks
-          const activeTracks = textTracks.filter(track => track.active)
-          
-          // If multiple tracks are active, keep only the first
-          if (activeTracks.length > 1) {
-            console.log(`Multiple Shaka tracks active (${activeTracks.length}), selecting first one`)
-            player.selectTextTrack(activeTracks[0])
-          }
-          
-          // We need to show captions - ensure a track is selected
-          if (showCaptions) {
-            // We need to show captions - ensure a track is selected
-            if (activeTracks.length === 0) {
-              // No track is active but we need to show captions - select the first track
-              console.log("showCaptions is true but no track is active, selecting first track")
-              player.selectTextTrack(textTracks[0])
-              
-              // Verify selection worked and then set visibility
-              setTimeout(() => {
-                const verifyTracks = player.getTextTracks()
-                const verifyActive = verifyTracks.filter(track => track.active)
-                if (verifyActive.length > 0) {
-                  player.setTextTrackVisibility(true)
-                  console.log(`Shaka caption visibility set to: true, active tracks: ${verifyActive.length}`)
-                } else {
-                  console.error("Failed to select Shaka track, trying again")
-                  // Try one more time
-                  player.selectTextTrack(textTracks[0])
-                  setTimeout(() => {
-                    player.setTextTrackVisibility(true)
-                  }, 100)
-                }
-              }, 100)
-              return // Exit early, visibility will be set in setTimeout
-            } else {
-              // Track is already active, just set visibility to show
-              player.setTextTrackVisibility(true)
-              console.log(`Shaka caption visibility set to: true, active tracks: ${activeTracks.length}`)
-            }
-          }
-        } else {
-          // No tracks available
-          console.warn("No Shaka text tracks available")
-          player.setTextTrackVisibility(false)
-        }
-      }
-      // Ensure we don't have native HTML5 tracks visible when using Shaka
-      if (videoElement && videoElement.textTracks) {
-        for (let i = 0; i < videoElement.textTracks.length; i++) {
-          const track = videoElement.textTracks[i]
-          if (track.kind === "subtitles" || track.kind === "captions") {
-            track.mode = "disabled"
-          }
-        }
-      }
-    } else {
-      // Handle native/HLS text tracks
-      if (videoElement) {
-        // Ensure a track exists if srt is provided and valid (regardless of showCaptions state)
-        if (srt && srt.trim() && srt.trim() !== "null" && srt.trim() !== "undefined") {
-          loadCaptions()
-        }
-        // Update all existing tracks - with retry for mobile
-        const updateTracks = () => {
-          const tracks = videoElement.textTracks || []
-          for (let i = 0; i < tracks.length; i++) {
-            const track = videoElement.textTracks[i]
-            if (track.kind === "subtitles" || track.kind === "captions") {
-              const targetMode = showCaptions ? "showing" : "hidden"
-              if (track.mode !== targetMode) {
-                track.mode = targetMode
-                console.log(`Set track ${i} mode to: ${targetMode}`)
-              }
-            }
-          }
-        }
-        updateTracks()
-        // Retry on mobile devices where tracks might not be ready immediately
-        if (application.isMobile) {
-          setTimeout(updateTracks, 100)
-          setTimeout(updateTracks, 500)
-        }
+      })
+      if (updated) {
+        console.log(`Native caption visibility set to: ${visible}`)
       }
     }
   })
@@ -931,13 +728,18 @@
   /* Shaka text overlay (if used) */
   :global(.shaka-text-container) {
     position: absolute !important;
-    left: 0;
-    right: 0;
+    left: 0 !important;
+    right: 0 !important;
     bottom: var(--captions-offset, 12vh) !important;
-    pointer-events: none;
-    text-align: center;
-    padding: 0 5vw;
-    z-index: 1000 !important;
+    top: auto !important;
+    pointer-events: none !important;
+    text-align: center !important;
+    padding: 0 5vw !important;
+    z-index: 10000 !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
   :global(.shaka-text-container .shaka-text) {
     color: #ffbc01 !important;
@@ -945,9 +747,20 @@
       -1px -1px 0px #000,
       1px -1px 0px #000,
       -1px 1px 0px #000,
-      1px 1px 0px #000;
+      1px 1px 0px #000 !important;
     font-size: clamp(12px, 2.6vw, 26px) !important;
-    line-height: 1.3;
+    line-height: 1.3 !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: transparent !important;
+  }
+  
+  /* Also target any Shaka caption elements */
+  :global([class*="shaka"][class*="text"]) {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
   }
 
   /* Mobile-specific Shaka caption positioning */

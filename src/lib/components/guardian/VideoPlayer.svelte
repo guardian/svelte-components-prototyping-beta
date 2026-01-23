@@ -9,6 +9,8 @@
     path = "https://interactive.guim.co.uk/embed/aus/2024/07/leaving-gaza",
     placeholder = "https://interactive.guim.co.uk/embed/aus/2024/07/leaving-gaza/coachella-wide.jpg",
     srt = "https://interactive.guim.co.uk/embed/aus/2024/07/leaving-gaza/coachella-wide.vtt",
+    captionVtt = null, // Optional explicit VTT URL
+    captionTtml = null, // Optional explicit TTML URL
     testing = false
   } = $props();
 
@@ -124,6 +126,36 @@
     }
   }
 
+  // Helper function to get best caption URL and format for player type
+  function getCaptionForPlayer(playerType) {
+    // For Shaka Player, prefer TTML, fallback to VTT
+    if (playerType === 'shaka') {
+      if (captionTtml) {
+        return { url: captionTtml, format: 'ttml', mimeType: 'application/ttml+xml' };
+      }
+      // Try to find TTML version from base URL
+      if (srt) {
+        const baseUrl = srt.replace(/\.(vtt|srt)$/i, '');
+        const ttmlUrl = `${baseUrl}.ttml`;
+        // Return TTML URL (we'll check if it exists when loading)
+        return { url: ttmlUrl, format: 'ttml', mimeType: 'application/ttml+xml', fallback: srt };
+      }
+      // Fallback to VTT
+      if (captionVtt || srt) {
+        const url = captionVtt || srt;
+        return { url, format: 'vtt', mimeType: 'text/vtt' };
+      }
+    }
+    
+    // For HLS and native players, use VTT
+    if (captionVtt || srt) {
+      const url = captionVtt || srt;
+      return { url, format: 'vtt', mimeType: 'text/vtt' };
+    }
+    
+    return null;
+  }
+
   // Platform detection and settings
   async function detectPlatform() {
     const settings = {};
@@ -201,8 +233,9 @@
       hls.loadSource(`${path}/hls/${src}/master.m3u8`);
       hls.attachMedia(videoElement);
       
-      if (srt) {
-        loadCaptions();
+      const captionInfo = getCaptionForPlayer('hls');
+      if (captionInfo && captionInfo.url) {
+        loadCaptions(captionInfo.url);
       }
       
       hls.on(Hls.Events.ERROR, (event, data) => {
@@ -221,13 +254,52 @@
       await player.load(`${path}/dash/${src}/manifest.mpd`);
       log("Loaded Shaka video");
 
-      if (srt) {
-        await player.addTextTrackAsync(srt, 'en', 'subtitles', 'text/vtt');
-        const textTracks = player.getTextTracks();
+      // Try to load caption with format detection (prefer TTML for Shaka)
+      const captionInfo = getCaptionForPlayer('shaka');
+      
+      if (captionInfo && captionInfo.url && captionInfo.url.trim() && 
+          captionInfo.url.trim() !== "null" && captionInfo.url.trim() !== "undefined") {
         
-        if (textTracks.length > 0) {
-          player.selectTextTrack(textTracks[0]);
-          player.setTextTrackVisibility(true);
+        let trackAdded = false;
+        
+        // Try TTML first if available (better for Shaka/DASH)
+        if (captionInfo.format === 'ttml' && captionInfo.mimeType === 'application/ttml+xml') {
+          try {
+            // Try to add TTML track directly - Shaka will handle errors gracefully
+            await player.addTextTrackAsync(captionInfo.url, 'en', 'subtitles', 'application/ttml+xml');
+            const textTracks = player.getTextTracks();
+            
+            if (textTracks.length > 0) {
+              // Verify the track was actually added successfully
+              const ttmlTrack = textTracks.find(t => t.uri === captionInfo.url) || textTracks[textTracks.length - 1];
+              player.selectTextTrack(ttmlTrack);
+              player.setTextTrackVisibility(true);
+              trackAdded = true;
+              log(`Loaded TTML captions from ${captionInfo.url}`);
+            }
+          } catch (ttmlError) {
+            log(`TTML load failed (${ttmlError.message}), trying VTT fallback`);
+            // Fall through to VTT
+          }
+        }
+        
+        // If TTML didn't work, try VTT
+        if (!trackAdded) {
+          const vttUrl = captionInfo.fallback || (captionInfo.format === 'vtt' ? captionInfo.url : null) || srt;
+          if (vttUrl && vttUrl.trim() && vttUrl.trim() !== "null" && vttUrl.trim() !== "undefined") {
+            try {
+              await player.addTextTrackAsync(vttUrl, 'en', 'subtitles', 'text/vtt');
+              const textTracks = player.getTextTracks();
+              
+              if (textTracks.length > 0) {
+                player.selectTextTrack(textTracks[0]);
+                player.setTextTrackVisibility(true);
+                log(`Loaded VTT captions from ${vttUrl}`);
+              }
+            } catch (vttError) {
+              log(`Failed to load VTT captions: ${vttError.message}`, 'error');
+            }
+          }
         }
       }
     } catch (error) {
@@ -246,17 +318,21 @@
       log('Standard video error', 'error');
     });
 
-    if (srt) {
-      loadCaptions();
+    const captionInfo = getCaptionForPlayer('mp4');
+    if (captionInfo && captionInfo.url) {
+      loadCaptions(captionInfo.url);
     }
   }
 
-  function loadCaptions() {
+  function loadCaptions(captionUrl = null) {
+    const urlToUse = captionUrl || srt;
+    if (!urlToUse) return;
+    
     const track = document.createElement('track');
     track.kind = 'subtitles';
     track.label = 'English';
     track.srclang = 'en';
-    track.src = srt;
+    track.src = urlToUse;
     track.default = true;
     videoElement.appendChild(track);
   }

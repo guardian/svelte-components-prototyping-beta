@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store'
 
 // Audio and caption settings stores
-export const showCaptions = writable(true)
+export const showCaptions = writable(false)
 export const isMuted = writable(true)
 
 // Video playback state store
@@ -13,12 +13,12 @@ export function toggleCaptions() {
 }
 
 export function toggleMuted() {
-  console.log('=== TOGGLE MUTED CALLED ===');
+  console.log('=== TOGGLE MUTED CALLED ===')
   isMuted.update(current => {
-    const newValue = !current;
-    console.log('Updating isMuted from', current, 'to', newValue);
-    return newValue;
-  });
+    const newValue = !current
+    console.log('Updating isMuted from', current, 'to', newValue)
+    return newValue
+  })
 }
 
 // Helper functions to set specific states
@@ -45,4 +45,4 @@ export function playVideo() {
 
 export function pauseVideo() {
   isVideoPlaying.set(false)
-} 
+}

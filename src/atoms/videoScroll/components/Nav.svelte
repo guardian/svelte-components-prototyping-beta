@@ -1,6 +1,6 @@
 <script>
   import { createEventDispatcher } from 'svelte';
-  import { showCaptions, isMuted, isVideoPlaying, toggleCaptions, toggleMuted, toggleVideoPlayback } from '$lib/stores/videoScroll.js'
+  import { showCaptions, isMuted, isVideoPlaying, toggleCaptions, toggleMuted, toggleVideoPlayback } from '$lib/stores/videoScroll.svelte.js'
   import GuardianSvg from './guardianSvg.svelte'
   import CaptionsSvg from './captionsSvg.svelte'
   import CaptionsOffSvg from './captionsOffSvg.svelte'
