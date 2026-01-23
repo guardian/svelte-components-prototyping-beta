@@ -18,7 +18,7 @@
     loop = false,
     muted: mutedProp = true,
     showCaptions = false,
-    captionsOffset = "5vh",
+    captionsOffset = "10vh",
     defaultHighRes = false,
   } = $props()
   // Component state using Svelte 5 syntax
