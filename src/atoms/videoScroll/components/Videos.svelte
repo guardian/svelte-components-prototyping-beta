@@ -30,6 +30,17 @@
   let canvasElement
   let canvasContext
   let animationFrameId = null
+  let isRenderingLoopActive = false
+  
+  // Performance monitoring for canvas rendering
+  let renderCount = 0
+  let renderStartTime = null
+  let renderTimes = []
+  
+  // Throttling for canvas rendering (30fps = ~33ms between frames)
+  const TARGET_FPS = 30
+  const FRAME_INTERVAL = 1000 / TARGET_FPS // ~33.33ms
+  let lastRenderTime = 0
 
   $inspect(videos)
 
@@ -87,6 +98,18 @@
   // Effect to observe video playback state changes (component instances react via props)
   $effect(() => {
     console.log("Video playback state changed to:", $isVideoPlaying)
+    
+    // Start/stop rendering loop based on playback state
+    if ($isVideoPlaying && canvasContext) {
+      startRenderingLoop()
+    } else {
+      stopRenderingLoop()
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      stopRenderingLoop()
+    }
   })
 
   // Effect to initialize playback state when active video changes
@@ -197,16 +220,19 @@
 
   // Update canvas when active video changes
   $effect(() => {
-    // Cancel any pending animation frame
-    if (animationFrameId !== null) {
-      cancelAnimationFrame(animationFrameId)
-      animationFrameId = null
-    }
+    // Stop any active rendering loop
+    stopRenderingLoop()
 
     if (active !== undefined && canvasContext) {
       // Small delay to ensure video element is rendered
       setTimeout(() => {
         drawVideoFrameToCanvas()
+        lastRenderTime = performance.now()
+        
+        // Restart rendering loop if video is playing
+        if ($isVideoPlaying) {
+          startRenderingLoop()
+        }
       }, 100)
     }
   })
@@ -214,6 +240,26 @@
   // Function to draw current video frame to canvas
   function drawVideoFrameToCanvas() {
     if (!canvasContext || !canvasElement) return
+
+    // Performance monitoring
+    const now = performance.now()
+    if (renderStartTime === null) {
+      renderStartTime = now
+    }
+    renderCount++
+    renderTimes.push(now)
+    
+    // Keep only last 60 render times for calculation
+    if (renderTimes.length > 60) {
+      renderTimes.shift()
+    }
+    
+    // Calculate and log FPS every 30 frames
+    if (renderCount % 30 === 0 && renderTimes.length >= 2) {
+      const timeSpan = renderTimes[renderTimes.length - 1] - renderTimes[0]
+      const fps = ((renderTimes.length - 1) / timeSpan) * 1000
+      console.log(`Canvas render FPS: ${fps.toFixed(2)} (${renderCount} total renders)`)
+    }
 
     // Find the active video element
     const activePanel = document.querySelector(`.panel[data-id="${active}"]`)
@@ -279,18 +325,51 @@
     }
   }
 
-  // Update canvas on video timeupdate using requestAnimationFrame
-  function handleVideoTimeUpdate(videoId, event) {
-    if (videoId === active) {
-      // Cancel any pending animation frame
-      if (animationFrameId !== null) {
-        cancelAnimationFrame(animationFrameId)
+  // Continuous rendering loop that runs at 30fps
+  function startRenderingLoop() {
+    if (isRenderingLoopActive) return
+    isRenderingLoopActive = true
+    
+    function renderLoop() {
+      // Stop loop if flag is false
+      if (!isRenderingLoopActive) {
+        if (animationFrameId !== null) {
+          cancelAnimationFrame(animationFrameId)
+          animationFrameId = null
+        }
+        return
       }
-      // Schedule canvas update
-      animationFrameId = requestAnimationFrame(() => {
+      
+      const now = performance.now()
+      const timeSinceLastRender = now - lastRenderTime
+      
+      // Only render if enough time has passed (throttle to 30fps)
+      if (timeSinceLastRender >= FRAME_INTERVAL) {
         drawVideoFrameToCanvas()
-        animationFrameId = null
-      })
+        lastRenderTime = now
+      }
+      
+      animationFrameId = requestAnimationFrame(renderLoop)
+    }
+    
+    renderLoop()
+  }
+  
+  function stopRenderingLoop() {
+    isRenderingLoopActive = false
+    if (animationFrameId !== null) {
+      cancelAnimationFrame(animationFrameId)
+      animationFrameId = null
+    }
+  }
+  
+  // Update canvas on video timeupdate (just triggers initial render, loop handles continuous updates)
+  function handleVideoTimeUpdate(videoId, event) {
+    if (videoId === active && $isVideoPlaying) {
+      // Start the rendering loop if not already running
+      if (!isRenderingLoopActive) {
+        startRenderingLoop()
+      }
     }
   }
 </script>
