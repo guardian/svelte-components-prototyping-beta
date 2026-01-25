@@ -244,6 +244,7 @@
       style: mapDefs,
       center: center,
       zoom: zoom,
+      cooperativeGestures: width < 480 ? true : false,
     })
 
     // Disable interactions if MAP_INTERACTIVE is false
