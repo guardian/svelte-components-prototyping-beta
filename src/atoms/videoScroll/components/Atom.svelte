@@ -39,10 +39,10 @@
 
   // Effect to log active state changes
   $effect(() => {
-    console.log('Active state changed to:', active)
-    console.log('Available video IDs:', videos.map(v => v.vid))
+    //console.log('Active state changed to:', active)
+    ////console.log('Available video IDs:', videos.map(v => v.vid))
     const activeVideo = videos.find(v => v.vid === active)
-    console.log('Active video found:', activeVideo)
+    //console.log('Active video found:', activeVideo)
     // Reset playback mode when active video changes
     playbackMode = 'unknown'
   })
@@ -52,7 +52,7 @@
       const data = await getJson(DATA_URL)
       let film = data.sheets.videos
       film.forEach(video => {
-        console.log(`Raw video ${video.vid} data:`, video);
+        //console.log(`Raw video ${video.vid} data:`, video);
         video.vid = +video.vid
         video.hasAudio = video.hasAudio === 'TRUE' ? true : false ; 
         video.loop = video.loop === 'TRUE' ? true : false ; 
@@ -60,10 +60,10 @@
         
         // If video has controls, it likely has audio (as per user feedback)
         if (video.controls && !video.hasAudio) {
-          console.log(`Video ${video.vid} has controls but no hasAudio flag - assuming it has audio`);
+          //console.log(`Video ${video.vid} has controls but no hasAudio flag - assuming it has audio`);
           video.hasAudio = true;
         }
-        
+        /*
         console.log(`Video ${video.vid} data:`, { 
           vid: video.vid, 
           hasAudio: video.hasAudio, 
@@ -73,16 +73,17 @@
           display: video.display,
           subs: video.subs
         })
+          */
         video.autoplay = true //video.autoplay === 'TRUE' ? true : false ; 
         video.overlay = video.overlay === 'TRUE' ? true : false ; 
         video.display = 'standard'
         video.hasCaptions = video.subs != '' ? true : false ; 
         video.defaultHighRes = video.defaultHighRes === 'TRUE' ? true : false ; 
-        console.log(`Video ${video.vid} caption data:`, { subs: video.subs, hasCaptions: video.hasCaptions })
-        console.log(`Video ${video.vid} defaultHighRes:`, video.defaultHighRes)
+        //console.log(`Video ${video.vid} caption data:`, { subs: video.subs, hasCaptions: video.hasCaptions })
+        //console.log(`Video ${video.vid} defaultHighRes:`, video.defaultHighRes)
       })
       videos = film
-      console.log('Videos loaded:', videos)
+      //console.log('Videos loaded:', videos)
     } catch (error) {
       console.error('Failed to load videos:', error)
     }
@@ -94,7 +95,7 @@
     const nextBlock = blocks[nextBlockId]
     
     if (nextBlock) {
-        console.log(`Scrolling to next block: ${nextBlockId}`)
+        //console.log(`Scrolling to next block: ${nextBlockId}`)
         setTimeout(function() {
             // Pause all videos
             var elementTop = window.pageYOffset + nextBlock.getBoundingClientRect().top - ( window.innerHeight / 2 )
@@ -150,7 +151,7 @@
   })
 
   function setupBlockObserver() {
-    console.log('Setting up block observer...')
+    //console.log('Setting up block observer...')
     
     // Clean up existing observer
     if (observer) {
@@ -158,15 +159,15 @@
     }
 
     observer = new IntersectionObserver((entries) => {
-      console.log('=== INTERSECTION OBSERVER TRIGGERED ===')
+      //console.log('=== INTERSECTION OBSERVER TRIGGERED ===')
       entries.forEach((entry) => {
         const blockId = entry.target.getAttribute('data-id')
         const intersectionRatio = entry.intersectionRatio
-        console.log(`Block ${blockId}: intersecting=${entry.isIntersecting}, ratio=${intersectionRatio.toFixed(2)}`)
+        //console.log(`Block ${blockId}: intersecting=${entry.isIntersecting}, ratio=${intersectionRatio.toFixed(2)}`)
         
         if (entry.isIntersecting) {
           if (blockId !== null) {
-            console.log(`Setting active block to: ${blockId}`)
+            //console.log(`Setting active block to: ${blockId}`)
             active = +blockId
           }
         }
@@ -175,10 +176,10 @@
 
     // Observe all blocks
     const blocks = document.querySelectorAll('.block')
-    console.log('Found blocks:', blocks.length)
+    //console.log('Found blocks:', blocks.length)
     blocks.forEach((block) => {
       const blockId = block.getAttribute('data-id')
-      console.log(`Observing block: ${blockId}`)
+     // console.log(`Observing block: ${blockId}`)
       observer.observe(block)
     })
   }

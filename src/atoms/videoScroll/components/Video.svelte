@@ -553,6 +553,8 @@
     if (!videoElement) return
     if (shouldPlay && isActive) {
       videoElement.play().catch(() => {})
+    } else if (!shouldPlay && isActive) {
+      videoElement.pause()
     }
   })
 

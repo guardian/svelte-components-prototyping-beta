@@ -42,7 +42,7 @@
   const FRAME_INTERVAL = 1000 / TARGET_FPS // ~33.33ms
   let lastRenderTime = 0
 
-  $inspect(videos)
+  //$inspect(videos)
 
   // Preload all poster images
   function preloadPosterImages() {
@@ -54,7 +54,7 @@
       img.src = posterUrl
       // Optional: log when images are loaded for debugging
       img.onload = () => {
-        console.log(`Preloaded poster image: ${posterUrl}`)
+        //console.log(`Preloaded poster image: ${posterUrl}`)
       }
       img.onerror = () => {
         console.warn(`Failed to preload poster image: ${posterUrl}`)
@@ -71,16 +71,18 @@
 
   // Update overlay based on active video
   $effect(() => {
+    /*
     console.log(
       "Videos component - Available videos:",
       videos.map((v) => ({ vid: v.vid, src: v.src, hasAudio: v.hasAudio })),
     )
-    console.log("Videos component - Active:", active)
+    //console.log("Videos component - Active:", active) */
     const activeVideo = videos.find((video) => video.vid === active)
     overlay = activeVideo?.overlay || false
     showControls = activeVideo?.controls || false
     hasCaptions = activeVideo?.hasCaptions || false
     activeVideoHasAudio = activeVideo?.hasAudio || false
+    /*
     console.log(
       `Overlay updated to: ${overlay} for video ${active}`,
       activeVideo,
@@ -88,16 +90,17 @@
     console.log(
       `Active video hasAudio: ${activeVideo?.hasAudio}, showControls: ${showControls}, hasCaptions: ${hasCaptions}`,
     )
+    */
   })
 
   // Debug showCaptions store changes
   $effect(() => {
-    console.log("showCaptions store changed to:", $showCaptions)
+    //console.log("showCaptions store changed to:", $showCaptions)
   })
 
   // Effect to observe video playback state changes (component instances react via props)
   $effect(() => {
-    console.log("Video playback state changed to:", $isVideoPlaying)
+    //console.log("Video playback state changed to:", $isVideoPlaying)
     
     // Start/stop rendering loop based on playback state
     if ($isVideoPlaying && canvasContext) {
@@ -116,9 +119,12 @@
   $effect(() => {
     const activeVideo = videos.find((video) => video.vid === active)
     if (activeVideo) {
+
+      /*
       console.log(
         `Initializing playback state for video ${activeVideo.vid}, autoplay: ${activeVideo.autoplay}`,
       )
+      */
       // Set initial state based on autoplay setting
       import("$lib/stores/videoScroll.svelte.js").then(({ setVideoPlaying }) => {
         setVideoPlaying(activeVideo.autoplay)
@@ -128,7 +134,7 @@
 
   // Handle video events
   function handleVideoLoad(videoId) {
-    console.log(`Video ${videoId} loaded`)
+    //console.log(`Video ${videoId} loaded`)
     // Autoplay behavior managed by Video component; ensure store reflects non-autoplay initial state
     const video = videos.find((v) => v.vid === videoId)
     if (videoId === active) {
@@ -140,7 +146,7 @@
 
   // Handle caption track events
   function handleCaptionTrackLoad(videoId) {
-    console.log(`Caption track loaded successfully for video ${videoId}`)
+    //console.log(`Caption track loaded successfully for video ${videoId}`)
   }
 
   function handleCaptionTrackError(videoId, error) {
@@ -149,7 +155,7 @@
 
   // Handle video canplay event
   function handleVideoCanPlay(videoId) {
-    console.log(`Video ${videoId} can play`)
+    //console.log(`Video ${videoId} can play`)
     if (videoId === active) {
       const video = videos.find((v) => v.vid === videoId)
       import("$lib/stores/videoScroll.svelte.js").then(({ setVideoPlaying }) => {
@@ -160,7 +166,7 @@
 
   // Handle video play event
   function handleVideoPlay(videoId) {
-    console.log(`Video ${videoId} started playing`)
+    //console.log(`Video ${videoId} started playing`)
     if (videoId === active) {
       import("$lib/stores/videoScroll.svelte.js").then(({ setVideoPlaying }) => {
         setVideoPlaying(true)
@@ -170,7 +176,7 @@
 
   // Handle video pause event
   function handleVideoPause(videoId) {
-    console.log(`Video ${videoId} paused`)
+    //console.log(`Video ${videoId} paused`)
     if (videoId === active) {
       import("$lib/stores/videoScroll.svelte.js").then(({ setVideoPlaying }) => {
         setVideoPlaying(false)
@@ -180,7 +186,7 @@
 
   // Handle video ended event
   function handleVideoEnded(videoId) {
-    console.log(`Video ${videoId} ended`)
+    //console.log(`Video ${videoId} ended`)
     if (videoId === active) {
       import("$lib/stores/videoScroll.svelte.js").then(({ setVideoPlaying }) => {
         setVideoPlaying(false)
@@ -201,7 +207,7 @@
   function handlePlaybackMode(videoId, mode) {
     if (videoId === active) {
       activePlaybackMode = mode
-      console.log(`Active video ${videoId} playback mode: ${mode}`)
+      //console.log(`Active video ${videoId} playback mode: ${mode}`)
       if (onPlaybackMode) {
         onPlaybackMode(mode)
       }
@@ -258,7 +264,7 @@
     if (renderCount % 30 === 0 && renderTimes.length >= 2) {
       const timeSpan = renderTimes[renderTimes.length - 1] - renderTimes[0]
       const fps = ((renderTimes.length - 1) / timeSpan) * 1000
-      console.log(`Canvas render FPS: ${fps.toFixed(2)} (${renderCount} total renders)`)
+      //console.log(`Canvas render FPS: ${fps.toFixed(2)} (${renderCount} total renders)`)
     }
 
     // Find the active video element
