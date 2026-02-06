@@ -1,5 +1,13 @@
-@use "@guardian/source/foundations/typography-classes.css";
-@use "@guardian/source/foundations/palette.css";
+@use "interactive-style-library/source/all" as *;
+@use "interactive-style-library/visuals/all" as *;
+@use "$lib/styles/_colors" as *;
+
+@use "$lib/article-layout/regular" with (
+  // => "inline" or "full-width" if you're making a tophat (see README)
+  $tophat: "none"
+);
+
+@import "interactive-style-library/source/all.css";
 
 @import "$lib/styles/mq.scss";
 @import "$lib/styles/defaults.scss";

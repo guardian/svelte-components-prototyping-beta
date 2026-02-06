@@ -1,0 +1,108 @@
+@use "sass:map";
+@use "interactive-style-library/source/breakpoints.scss" as *;
+
+/// Sets `margin-left` and `width` properties to make content span the full width of the page.
+///
+/// Also declares a `--align-to-body-left` CSS variable that can be used to bring content
+/// within the full-width element back in line with the grid body column.
+///
+/// These styles rely on the changes made by $lib/styles/preflight.scss. Make sure this file is
+/// imported in your Atom's main style file before this one (it is by default).
+///
+/// @param {string} $for - Pass "main-media" when targeting top hat elements to fix
+///   handling of "gutter" margins
+///
+/// @example
+///  .content__main-column--interactive .element-immersive {
+///    @include full-width;
+///
+///    & .copy-inside-immersive-element {
+///      margin-left: var(--align-to-body-left);
+///    }
+///  }
+///
+/// .content--interactive-grid > [data-gu-name="media"] {
+///   @include full-width($for: "main-media");
+///   z-index: 1;
+/// }
+@mixin full-width($for: null) {
+  margin-left: -10px;
+  margin-right: -10px;
+  width: auto;
+
+  // DCR helpfully applies these negative margins for us, so don't apply them if
+  // this mixin is being used for main media elements
+  @if $for == "main-media" {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  // This variable can be used to bring any content within the full-width main media
+  // back in line with the grid body column
+  --align-to-body-left: 10px;
+
+  @media (min-width: map.get($breakpoints, mobileLandscape)) {
+    --align-to-body-left: 20px;
+
+    @if $for != "main-media" {
+      margin-left: -20px;
+      margin-right: -20px;
+    }
+  }
+
+  @media (min-width: map.get($breakpoints, phablet)) {
+    width: calc(100vw - var(--scrollbar-width, 0px));
+
+    // Between phablet and tablet, to push inline elements to the left of the screen,
+    // we just push it past the grid's 20px padding
+    margin-left: -20px;
+
+    // At this point we're using 100vw, so no need to set margin-right
+    margin-right: 0;
+  }
+
+  // Width of "leftCol" area in grid, if present
+  --grid-left-col-width: 0px;
+
+  @media (min-width: map.get($breakpoints, tablet)) {
+    --grid-width: 740px;
+
+    // prettier-ignore
+    margin-left: calc(
+      // Find total space beside the grid container
+      (100vw - var(--grid-width) - var(--scrollbar-width, 0px))
+
+      // Divide by 2 to get just the left side 
+      / -2
+
+      // Include any leftCol width
+      - var(--grid-left-col-width)
+
+      // Include 20px padding + 1px border on grid container
+      - 21px
+    );
+
+    // From this breakpoint onwards, --align-to-body-left is simply inverse of margin-left
+    // prettier-ignore
+    --align-to-body-left: calc(
+      (100vw - var(--grid-width) - var(--scrollbar-width, 0px))
+      / 2
+      + var(--grid-left-col-width)
+      + 21px
+    );
+  }
+
+  @media (min-width: map.get($breakpoints, desktop)) {
+    --grid-width: 980px;
+  }
+
+  @media (min-width: map.get($breakpoints, leftCol)) {
+    --grid-width: 1140px;
+    --grid-left-col-width: 161px; // 140px (column width) + 20px (2x column-gap) + 1px (border)
+  }
+
+  @media (min-width: map.get($breakpoints, wide)) {
+    --grid-width: 1300px;
+    --grid-left-col-width: 240px; // 219px (column width) + 20px (2x column-gap) + 1px (border)
+  }
+}

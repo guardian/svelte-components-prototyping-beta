@@ -24,6 +24,7 @@
     "eslint-plugin-react": "^7.35.0",
     "eslint-plugin-react-hooks": "^5.1.0-beta-26f2496093-20240514",
     "eslint-plugin-svelte": "^3.10.1",
+    "interactive-style-library": "github:guardian/interactive-style-library",
     "globals": "^15.8.0",
     "lint-staged": "^15.2.7",
     "lodash": "^4.17.21",

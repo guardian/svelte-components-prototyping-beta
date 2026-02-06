@@ -1,0 +1,28 @@
+@use "../styles/full-width" as *;
+
+////
+/// Common styles and utilities needed to create the neighbouring
+/// article layout files.
+////
+
+@mixin full-width-top-hat {
+  .content--interactive-grid > [data-gu-name="media"] {
+    @include full-width($for: "main-media");
+    z-index: 1;
+  }
+
+  .content--interactive-grid > [data-gu-name="media"] > div:first-child {
+    // Remove default max-width, letting media span width of page
+    max-width: none;
+  }
+
+  // Make sure internal atom overlay doesn't cause horizontal overflow
+  .atom-highlighter {
+    max-width: 100%;
+  }
+
+  // We try to account for scrollbar width, but if there is any overflow clip it
+  main > article {
+    overflow-x: clip;
+  }
+}

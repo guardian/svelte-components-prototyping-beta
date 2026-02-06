@@ -1,0 +1,117 @@
+@use "sass:map";
+@use "interactive-style-library/source/breakpoints" as *;
+@use "./_common" as *;
+
+////
+/// These styles re-arrange the default interactive article page so that
+/// it looks like a regular article page:
+/// - bylines in the left column
+/// - inline body content, no spilling into the left or right columns
+///
+/// Use the $tophat variable to control how atoms in "main media" are presented.
+/// This is "none" by default, ie. you don't intend to add an atom into "main media".
+///
+/// @example scss
+///   @use "$lib/styles/article-layout/regular.scss" with (
+///     $tophat: "inline",
+///   );
+////
+
+/// @type {"none" | inline" | "full-width"}
+$tophat: "none" !default;
+
+// We use `map.get` here to use pixel values, as the article page does.
+// `@include mq` uses rems, which scale with browser zoom.
+.content--interactive-grid {
+  @if $tophat != "none" {
+    @media (max-width: map.get($breakpoints, desktop)) {
+      // Use !important here just in case there are other atoms in the page that also load
+      // preflight, but forget to set the same "tophat" setting
+      grid-template-areas:
+        "media"
+        "title"
+        "headline"
+        "standfirst"
+        "lines"
+        "meta"
+        "body" !important;
+    }
+  }
+
+  @media (min-width: map.get($breakpoints, desktop)) {
+    grid-template-columns: 620px 300px;
+
+    @if $tophat != "none" {
+      grid-template-areas:
+        "media         right-column"
+        "title         right-column"
+        "headline      right-column"
+        "standfirst    right-column"
+        "lines         right-column"
+        "meta          right-column"
+        "body          right-column"
+        ".             right-column" !important;
+    } @else {
+      grid-template-areas:
+        "title         right-column"
+        "headline      right-column"
+        "standfirst    right-column"
+        "media         right-column"
+        "lines         right-column"
+        "meta          right-column"
+        "body          right-column"
+        ".             right-column";
+    }
+  }
+
+  @media (min-width: map.get($breakpoints, leftCol)) {
+    // This rows rule is needed so "lines" occupies minimal space, and doesn't push
+    // meta further down
+    grid-template-rows: auto auto auto min-content 1fr auto;
+    grid-template-columns: 140px 1px 620px 300px;
+
+    @if $tophat == "none" {
+      grid-template-areas:
+        "title  border  headline     right-column"
+        ".      border  standfirst   right-column"
+        ".      border  media        right-column"
+        "lines  border  body         right-column"
+        "meta   border  body         right-column"
+        ".      border  .            right-column";
+    } @else {
+      grid-template-areas:
+        ".      border  media        right-column"
+        "title  border  headline     right-column"
+        ".      border  standfirst   right-column"
+        "lines  border  body         right-column"
+        "meta   border  body         right-column"
+        ".      border  .            right-column" !important;
+    }
+  }
+
+  @media (min-width: map.get($breakpoints, wide)) {
+    grid-template-columns: 219px 1px 620px 80px 300px;
+
+    @if $tophat == "none" {
+      grid-template-areas:
+        "title  border  headline   . right-column"
+        ".      border  standfirst . right-column"
+        ".      border  media      . right-column"
+        "lines  border  body       . right-column"
+        "meta   border  body       . right-column"
+        ".      border  .          . right-column";
+    } @else {
+      grid-template-areas:
+        ".      border  media      . right-column"
+        "title  border  headline   . right-column"
+        ".      border  standfirst . right-column"
+        "lines  border  body       . right-column"
+        "meta   border  body       . right-column"
+        ".      border  .          . right-column" !important;
+    }
+  }
+}
+
+@if $tophat == "full-width" {
+  @include full-width-top-hat;
+}
