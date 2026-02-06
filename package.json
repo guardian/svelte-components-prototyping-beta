@@ -57,7 +57,12 @@
     "@types/d3": "^7.4.3",
     "chroma-js": "^3.2.0",
     "d3": "^7.9.0",
-    "preact": "^10.19.6"
+    "hls.js": "^1.6.15",
+    "maplibre-gl": "^5.17.0",
+    "preact": "^10.19.6",
+    "shaka-player": "^4.16.16",
+    "smoothscroll-polyfill": "^0.4.4",
+    "subtitles-parser": "^0.0.2"
   },
   "browserslist": [
     "extends @guardian/browserslist-config"
