@@ -1,15 +1,16 @@
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte"
-import { fileURLToPath } from "url"
-import { resolve } from "path"
-
-const __dirname = fileURLToPath(new URL(".", import.meta.url))
-const libPath = resolve(__dirname, "src/lib")
 
 export default {
   preprocess: [
     {
       style: ({ content }) => ({
-        code: `@use "${libPath}/styles/mq.scss" as *;\n@use "@guardian/source/foundations/typography-mixins.scss" as *;\n${content}`,
+        // Prepend SCSS mixin imports to each Svelte <style> block,
+        // so we can use eg. `@include mq(leftCol)` in them
+        code:
+          `@use "interactive-style-library/source/mq.scss" as *;\n` +
+          `@use "interactive-style-library/source/typography-mixins.scss" as *;\n` +
+          `@use "interactive-style-library/visuals/charts-mixins.scss" as *;\n` +
+          `${content}`,
       }),
     },
     vitePreprocess(),

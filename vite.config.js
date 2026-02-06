@@ -2,12 +2,13 @@ import { defineConfig } from "vite"
 import { svelte } from "@sveltejs/vite-plugin-svelte"
 import path from "path"
 import autoprefixer from "autoprefixer"
+import mergeSelectors from "postcss-combine-duplicated-selectors"
 import { viteStaticCopy } from "vite-plugin-static-copy"
 import replace from "@rollup/plugin-replace"
 import { testHarness } from "./scripts/testHarness.js"
 import { prerender } from "./scripts/prerender.js"
 import preact from "@preact/preset-vite"
-import { purgeSourceCss } from "./scripts/purgeSourceCss.js"
+import { purgeInteractiveStylesCss } from "interactive-style-library/vite"
 
 const assetsPath = process.env.ATOM_ASSETS_PATH || ""
 
@@ -33,7 +34,7 @@ export default defineConfig(({ mode }) => {
     },
     css: {
       postcss: {
-        plugins: [autoprefixer()],
+        plugins: [autoprefixer(), mergeSelectors()],
       },
       devSourcemap: true,
     },
@@ -48,6 +49,10 @@ export default defineConfig(({ mode }) => {
 
       svelte({
         configFile: path.resolve(__dirname, "svelte.config.js"),
+        // Suppress warning about svelte-scroller using deprecated package.json "svelte" field
+        experimental: {
+          disableSvelteResolveWarnings: true,
+        },
       }),
 
       preact(),
@@ -60,7 +65,7 @@ export default defineConfig(({ mode }) => {
       prerender(),
 
       // Run PurgeCSS on the final CSS output, to remove unused styles imported from "@guardian/source"
-      purgeSourceCss(),
+      purgeInteractiveStylesCss(),
 
       viteStaticCopy({
         targets: [
