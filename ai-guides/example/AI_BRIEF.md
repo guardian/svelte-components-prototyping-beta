@@ -1,3 +1,15 @@
+# Project Overview
+
+This project is a [short description].
+The goal is to [primary outcome].
+
+This is a long-lived project. Changes should favour:
+- clarity over cleverness
+- explicitness over abstraction
+- maintainability over premature optimisation
+
+---
+
 ## Technical Stack
 
 - Framework: Svelte (Svelte 5 preferred)
