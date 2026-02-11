@@ -21,12 +21,12 @@
   import { select } from "d3-selection"
 
   import basemap from "$lib/mapstyles/basemap-styles.json"
-  import aus from "$lib/mapstyles/aus-simple.json"
+  import aus from "$lib/mapstyles/aus-simple.json" 
   // Add darkmode detection here at some point
 
   let width = $state(620)
   let height = 500
-  let debug = false
+  let debug = true
 
   // Component props
   let {
@@ -39,7 +39,8 @@
     SHOW_GEOLOCATE_CONTROL = false,
     center = [116.03196265904751, -31.90047341428921],
     clusterRadius = 40, // pixels; tweak
-    clusterMaxZoom = 14, // last zoom where clustering occurs
+    clusterMaxZoom = 11, // last zoom where clustering occurs
+    maxZoom = 11, // map max zoom
     zoom = 8,
     headline = "",
     subtitle = "",
@@ -56,6 +57,13 @@
   let isLoading = $state(true)
   let mapReady = $state(false)
   const dispatch = createEventDispatcher()
+  let spiderPopup = null
+  let spiderMarkers = []
+  let spiderLegSvg = null
+  let interactionsBound = false
+  const COORD_EPSILON = 1e-5
+  const SPIDERFY_PIXEL_TOLERANCE = 100
+  const SPIDERFY_CLUSTER_RADIUS_PX = 100
 
   // Compute map bounds from mapdata (min/max lat, lng). Returns [[swLng, swLat], [neLng, neLat]] or null.
   function getBoundsFromMapdata(rows) {
@@ -101,6 +109,313 @@
     })
   }
 
+  function toSerializableProperties(value) {
+    if (value == null || typeof value !== "object") return {}
+    try {
+      return JSON.parse(JSON.stringify(value))
+    } catch (_err) {
+      return {}
+    }
+  }
+
+  function clearSpider() {
+    if (!mapInstance) return
+    if (debug) {
+      console.log("[Spiderfy] clearSpider", { markerCount: spiderMarkers.length })
+    }
+    for (const marker of spiderMarkers) marker.remove()
+    spiderMarkers = []
+    clearSpiderLegs()
+    if (spiderPopup) {
+      spiderPopup.remove()
+      spiderPopup = null
+    }
+  }
+
+  function ensureSpiderLegOverlay() {
+    if (!mapInstance) return null
+
+    const container = mapInstance.getContainer()
+    if (!container) return null
+
+    if (!spiderLegSvg || !container.contains(spiderLegSvg)) {
+      spiderLegSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+      spiderLegSvg.classList.add("spider-legs-overlay")
+      container.appendChild(spiderLegSvg)
+    }
+
+    spiderLegSvg.setAttribute("width", String(container.clientWidth))
+    spiderLegSvg.setAttribute("height", String(container.clientHeight))
+    return spiderLegSvg
+  }
+
+  function clearSpiderLegs() {
+    if (!spiderLegSvg) return
+    spiderLegSvg.replaceChildren()
+  }
+
+  function spiderfyAt(centerLngLat, leaves) {
+    if (!mapInstance || !Array.isArray(leaves) || leaves.length < 2) return
+
+    if (debug) {
+      console.log("[Spiderfy] spiderfyAt", {
+        center: centerLngLat,
+        leavesCount: leaves.length,
+      })
+    }
+
+    const center = mapInstance.project(centerLngLat)
+    const count = leaves.length
+    const radius = Math.min(70, 25 + count * 4)
+    clearSpider()
+    const spiderLegOverlay = ensureSpiderLegOverlay()
+
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2
+      const projected = {
+        x: center.x + radius * Math.cos(angle),
+        y: center.y + radius * Math.sin(angle),
+      }
+      const lngLat = mapInstance.unproject(projected)
+      const props = {
+        ...toSerializableProperties(leaves[i]?.properties),
+        __leaf: true,
+        __idx: i,
+      }
+
+      const markerEl = document.createElement("button")
+      markerEl.type = "button"
+      markerEl.className = "spider-marker"
+      markerEl.setAttribute("aria-label", props.title ?? `Point ${i + 1}`)
+      markerEl.addEventListener("click", (evt) => {
+        evt.stopPropagation()
+        const lng = lngLat.lng
+        const lat = lngLat.lat
+
+        dispatch("pointclick", { lng, lat, properties: props })
+        if (spiderPopup) spiderPopup.remove()
+        const popupHTML =
+          fillPopupTemplate(popupTemplate, props) ||
+          `<div style="max-width:220px">${props.title ?? "Point"}</div>`
+        spiderPopup = new maplibregl.Popup()
+          .setLngLat([lng, lat])
+          .setHTML(`<div class="carto-popup-content">${popupHTML}</div>`)
+          .addTo(mapInstance)
+      })
+
+      const marker = new maplibregl.Marker({
+        element: markerEl,
+        anchor: "center",
+      })
+        .setLngLat([lngLat.lng, lngLat.lat])
+        .addTo(mapInstance)
+      spiderMarkers.push(marker)
+
+      if (spiderLegOverlay) {
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line")
+        line.classList.add("spider-leg")
+        line.setAttribute("x1", String(center.x))
+        line.setAttribute("y1", String(center.y))
+        line.setAttribute("x2", String(projected.x))
+        line.setAttribute("y2", String(projected.y))
+        spiderLegOverlay.appendChild(line)
+      }
+    }
+
+    if (debug) {
+      console.log("[Spiderfy] markers rendered", { markerCount: spiderMarkers.length })
+    }
+  }
+
+  function getCoincidentLeavesAt(lng, lat) {
+    return (mapdata ?? [])
+      .filter(
+        (row) =>
+          row != null &&
+          Number.isFinite(row.latitude) &&
+          Number.isFinite(row.longitude) &&
+          Math.abs(row.longitude - lng) < COORD_EPSILON &&
+          Math.abs(row.latitude - lat) < COORD_EPSILON,
+      )
+      .map((row) => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [row.longitude, row.latitude],
+        },
+        properties: toSerializableProperties(row),
+      }))
+  }
+
+  function getNearbyCoincidentLeaves(lng, lat, maxPixelDistance = 40) {
+    if (!mapInstance || !Array.isArray(mapdata) || mapdata.length === 0) return []
+
+    const groups = {}
+    for (const row of mapdata) {
+      if (
+        row == null ||
+        !Number.isFinite(row.latitude) ||
+        !Number.isFinite(row.longitude)
+      )
+        continue
+      const key = `${row.longitude},${row.latitude}`
+      if (!groups[key]) groups[key] = []
+      groups[key].push(row)
+    }
+
+    const clusterPoint = mapInstance.project({ lng, lat })
+    let bestRows = []
+    let bestDistance = Infinity
+
+    for (const rows of Object.values(groups)) {
+      if (rows.length < 2) continue
+      const anchor = rows[0]
+      const p = mapInstance.project({
+        lng: anchor.longitude,
+        lat: anchor.latitude,
+      })
+      const distance = Math.hypot(p.x - clusterPoint.x, p.y - clusterPoint.y)
+      if (distance < bestDistance) {
+        bestDistance = distance
+        bestRows = rows
+      }
+    }
+
+    if (bestRows.length < 2 || bestDistance > maxPixelDistance) return []
+    return bestRows.map((row) => ({
+      type: "Feature",
+      geometry: {
+        type: "Point",
+        coordinates: [row.longitude, row.latitude],
+      },
+      properties: toSerializableProperties(row),
+    }))
+  }
+
+  function areLeavesCoincident(leaves) {
+    if (!Array.isArray(leaves) || leaves.length < 2) return false
+    const first = leaves[0]?.geometry?.coordinates
+    if (!Array.isArray(first) || first.length < 2) return false
+    const [firstLng, firstLat] = first
+    return leaves.every((leaf) => {
+      const coords = leaf?.geometry?.coordinates
+      if (!Array.isArray(coords) || coords.length < 2) return false
+      const [lng, lat] = coords
+      return (
+        Math.abs(lng - firstLng) < COORD_EPSILON &&
+        Math.abs(lat - firstLat) < COORD_EPSILON
+      )
+    })
+  }
+
+  function areLeavesCoincidentByPixels(
+    leaves,
+    pixelTolerance = SPIDERFY_PIXEL_TOLERANCE,
+  ) {
+    if (!mapInstance || !Array.isArray(leaves) || leaves.length < 2) return false
+    const firstCoords = leaves[0]?.geometry?.coordinates
+    if (!Array.isArray(firstCoords) || firstCoords.length < 2) return false
+    const firstPoint = mapInstance.project({
+      lng: firstCoords[0],
+      lat: firstCoords[1],
+    })
+
+    return leaves.every((leaf) => {
+      const coords = leaf?.geometry?.coordinates
+      if (!Array.isArray(coords) || coords.length < 2) return false
+      const p = mapInstance.project({ lng: coords[0], lat: coords[1] })
+      return (
+        Math.abs(p.x - firstPoint.x) <= pixelTolerance &&
+        Math.abs(p.y - firstPoint.y) <= pixelTolerance
+      )
+    })
+  }
+
+  function areLeavesWithinPixelRadius(
+    leaves,
+    radiusPx = SPIDERFY_CLUSTER_RADIUS_PX,
+  ) {
+    if (!mapInstance || !Array.isArray(leaves) || leaves.length < 2) return false
+
+    const projected = leaves
+      .map((leaf) => {
+        const coords = leaf?.geometry?.coordinates
+        if (!Array.isArray(coords) || coords.length < 2) return null
+        return mapInstance.project({ lng: coords[0], lat: coords[1] })
+      })
+      .filter(Boolean)
+
+    if (projected.length < 2) return false
+
+    const center = projected.reduce(
+      (acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }),
+      { x: 0, y: 0 },
+    )
+    center.x /= projected.length
+    center.y /= projected.length
+
+    const maxDistance = projected.reduce((max, p) => {
+      const dx = p.x - center.x
+      const dy = p.y - center.y
+      const dist = Math.hypot(dx, dy)
+      return Math.max(max, dist)
+    }, 0)
+
+    return maxDistance <= radiusPx
+  }
+
+  function getLeafProximityDiagnostics(leaves) {
+    const safeLeaves = Array.isArray(leaves) ? leaves : []
+    const coordinates = safeLeaves
+      .map((leaf) => leaf?.geometry?.coordinates)
+      .filter((coords) => Array.isArray(coords) && coords.length >= 2)
+      .map(([lng, lat], idx) => ({ idx, lng, lat }))
+
+    const projected = mapInstance
+      ? coordinates.map(({ lng, lat, idx }) => {
+          const p = mapInstance.project({ lng, lat })
+          return { idx, x: p.x, y: p.y }
+        })
+      : []
+
+    let maxDeltaFromFirstPx = 0
+    if (projected.length > 1) {
+      const first = projected[0]
+      for (let i = 1; i < projected.length; i++) {
+        const dx = projected[i].x - first.x
+        const dy = projected[i].y - first.y
+        maxDeltaFromFirstPx = Math.max(maxDeltaFromFirstPx, Math.hypot(dx, dy))
+      }
+    }
+
+    let maxDistanceFromCentroidPx = 0
+    if (projected.length > 1) {
+      const center = projected.reduce(
+        (acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }),
+        { x: 0, y: 0 },
+      )
+      center.x /= projected.length
+      center.y /= projected.length
+      for (const p of projected) {
+        const dx = p.x - center.x
+        const dy = p.y - center.y
+        maxDistanceFromCentroidPx = Math.max(
+          maxDistanceFromCentroidPx,
+          Math.hypot(dx, dy),
+        )
+      }
+    }
+
+    return {
+      coordinateCount: coordinates.length,
+      coordinates,
+      maxDeltaFromFirstPx,
+      maxDistanceFromCentroidPx,
+      pixelTolerance: SPIDERFY_PIXEL_TOLERANCE,
+      clusterRadiusPx: SPIDERFY_CLUSTER_RADIUS_PX,
+    }
+  }
+
   // Convert mapdata rows (latitude, longitude) to GeoJSON FeatureCollection for circle layer
   function mapDataToGeoJSON(rows) {
     if (!Array.isArray(rows) || rows.length === 0) {
@@ -121,7 +436,7 @@
             type: "Point",
             coordinates: [row.longitude, row.latitude],
           },
-          properties: { ...row },
+          properties: toSerializableProperties(row),
         })),
     }
   }
@@ -200,7 +515,7 @@
     try {
       mapInstance.fitBounds(bounds, {
         padding: { top: 60, bottom: 60, left: 60, right: 60 },
-        maxZoom: 14,
+        maxZoom: maxZoom,
         duration: 0,
       })
       updateMinimap()
@@ -226,6 +541,7 @@
     const CLUSTER_LAYER = "sheet-points-clusters"
     const CLUSTER_COUNT = "sheet-points-cluster-count"
     const UNCLUSTERED = "sheet-points-unclustered"
+    const CLUSTER_INTERACTIVE_LAYERS = [CLUSTER_LAYER, CLUSTER_COUNT]
 
     if (!mapInstance.getLayer(CLUSTER_LAYER)) {
       mapInstance.addLayer({
@@ -298,27 +614,183 @@
     }
 
     // 3) interactions (bind once)
-    if (!renderMap._bound) {
-      renderMap._bound = true
+    if (!interactionsBound) {
+      interactionsBound = true
 
-      // Click a cluster -> zoom to expand it
-      mapInstance.on("click", CLUSTER_LAYER, (e) => {
-        const features = mapInstance.queryRenderedFeatures(e.point, {
-          layers: [CLUSTER_LAYER],
-        })
-        const clusterFeature = features?.[0]
-        if (!clusterFeature) return
+      function handleClusterClick(e) {
+        try {
+          if (debug) {
+            console.log("[Spiderfy] handleClusterClick fired", {
+              zoom: mapInstance.getZoom(),
+            })
+          }
 
-        const clusterId = clusterFeature.properties.cluster_id
-        const source = mapInstance.getSource("sheet-points")
+          const renderedFeatures = mapInstance.queryRenderedFeatures(e.point, {
+            layers: CLUSTER_INTERACTIVE_LAYERS,
+          })
+          const clusterFeature = renderedFeatures?.find(
+            (f) => f?.properties?.cluster_id != null,
+          )
+          if (!clusterFeature) {
+            return
+          }
 
-        // getClusterExpansionZoom exists on GeoJSONSource when cluster:true
-        source.getClusterExpansionZoom(clusterId, (err, zoom) => {
-          if (err) return
+          const rawClusterId = clusterFeature.properties.cluster_id
+          const clusterId = Number(rawClusterId)
+          if (!Number.isFinite(clusterId)) {
+            if (debug) {
+              console.log("[Spiderfy] invalid cluster_id", { rawClusterId })
+            }
+            return
+          }
+          const source = mapInstance.getSource("sheet-points")
+          if (!source?.getClusterExpansionZoom || !source?.getClusterLeaves) {
+            if (debug) console.log("[Spiderfy] source missing cluster methods")
+            return
+          }
+
           const [lng, lat] = clusterFeature.geometry.coordinates
-          mapInstance.easeTo({ center: [lng, lat], zoom, duration: 400 })
-        })
-      })
+          const currentZoom = mapInstance.getZoom()
+          const atZoomCap = currentZoom >= maxZoom - 0.01
+          const pointCount = Number(clusterFeature.properties?.point_count ?? 0)
+          const exactCoincident = getCoincidentLeavesAt(lng, lat)
+          const nearbyCoincident = getNearbyCoincidentLeaves(lng, lat)
+          const immediateCoincident =
+            exactCoincident.length > 1 ? exactCoincident : nearbyCoincident
+          const immediateAllCoincident =
+            pointCount > 1 && immediateCoincident.length === pointCount
+
+          if (debug) {
+            console.log("[Spiderfy] preflight", {
+              clusterId,
+              pointCount,
+              currentZoom,
+              maxZoom,
+              atZoomCap,
+              exactCoincident: exactCoincident.length,
+              nearbyCoincident: nearbyCoincident.length,
+              immediateCoincident: immediateCoincident.length,
+              immediateAllCoincident,
+            })
+          }
+
+          // Spiderfy at any zoom when all points in this cluster share one coordinate.
+          if (immediateAllCoincident) {
+            clearSpider()
+            spiderfyAt({ lng, lat }, immediateCoincident)
+            return
+          }
+
+          const maxLeaves = Math.max(pointCount, 1)
+          source.getClusterLeaves(clusterId, maxLeaves, 0, (leafErr, leaves) => {
+            const coincidentLeaves = getCoincidentLeavesAt(lng, lat)
+            const safeLeaves = Array.isArray(leaves) ? leaves : []
+            const gotAllClusterLeaves =
+              pointCount > 1 && safeLeaves.length === pointCount
+            const coincidentByPixels =
+              gotAllClusterLeaves && areLeavesCoincidentByPixels(safeLeaves)
+            const withinTightRadius =
+              gotAllClusterLeaves && areLeavesWithinPixelRadius(safeLeaves)
+            const coincidentClusterLeaves =
+              gotAllClusterLeaves &&
+              (areLeavesCoincident(safeLeaves) ||
+                coincidentByPixels ||
+                withinTightRadius)
+
+            if (debug) {
+              const proximityDiagnostics =
+                gotAllClusterLeaves && safeLeaves.length > 1
+                  ? getLeafProximityDiagnostics(safeLeaves)
+                  : null
+              console.log("[Spiderfy] leaves resolved", {
+                clusterId,
+                maxLeaves,
+                leafErr,
+                leavesCount: safeLeaves.length,
+                gotAllClusterLeaves,
+                coincidentClusterLeaves,
+                coincidentByPixels,
+                withinTightRadius,
+                coincidentLeaves: coincidentLeaves.length,
+                proximityDiagnostics,
+              })
+            }
+
+            // Any zoom: if all leaves in this cluster are coincident, spiderfy now.
+            if (coincidentClusterLeaves && safeLeaves.length > 1) {
+              clearSpider()
+              spiderfyAt({ lng, lat }, safeLeaves)
+              return
+            }
+
+            // If leaves call failed but local data clearly has coincident points, spiderfy fallback.
+            if (leafErr && coincidentLeaves.length > 1) {
+              clearSpider()
+              spiderfyAt({ lng, lat }, coincidentLeaves)
+              return
+            }
+
+            source.getClusterExpansionZoom(clusterId, (err, expansionZoom) => {
+              if (err) {
+                if (debug) {
+                  console.log("[Spiderfy] getClusterExpansionZoom error", {
+                    clusterId,
+                    err,
+                  })
+                }
+                return
+              }
+
+              const currentZoom = mapInstance.getZoom()
+              const cappedExpansionZoom = Math.min(expansionZoom, maxZoom)
+              const atZoomCap = currentZoom >= maxZoom - 0.01
+              const wouldHitZoomCap = cappedExpansionZoom >= maxZoom - 0.01
+              const canZoomIn =
+                !atZoomCap &&
+                !wouldHitZoomCap &&
+                cappedExpansionZoom > currentZoom + 0.01
+
+              if (debug) {
+                console.log("[Spiderfy] cluster click", {
+                  clusterId,
+                  rawClusterId,
+                  pointCount,
+                  expansionZoom,
+                  cappedExpansionZoom,
+                  currentZoom,
+                  maxZoom,
+                  atZoomCap,
+                  wouldHitZoomCap,
+                  canZoomIn,
+                })
+              }
+
+              if (canZoomIn) {
+                clearSpider()
+                mapInstance.easeTo({
+                  center: [lng, lat],
+                  zoom: cappedExpansionZoom,
+                  duration: 400,
+                })
+                return
+              }
+
+              const fromClusterOrFallback =
+                safeLeaves.length > 1 ? safeLeaves : coincidentLeaves
+              if (fromClusterOrFallback.length > 1) {
+                clearSpider()
+                spiderfyAt({ lng, lat }, fromClusterOrFallback)
+              }
+            })
+          })
+        } catch (err) {
+          console.error("[Spiderfy] handleClusterClick threw", err)
+        }
+      }
+
+      // Click anywhere, then resolve cluster from interactive cluster layers.
+      // Using a single listener avoids duplicate cluster click handling.
+      mapInstance.on("click", handleClusterClick)
 
       // Cursor affordance
       mapInstance.on(
@@ -327,8 +799,18 @@
         () => (mapInstance.getCanvas().style.cursor = "pointer"),
       )
       mapInstance.on(
+        "mouseenter",
+        CLUSTER_COUNT,
+        () => (mapInstance.getCanvas().style.cursor = "pointer"),
+      )
+      mapInstance.on(
         "mouseleave",
         CLUSTER_LAYER,
+        () => (mapInstance.getCanvas().style.cursor = ""),
+      )
+      mapInstance.on(
+        "mouseleave",
+        CLUSTER_COUNT,
         () => (mapInstance.getCanvas().style.cursor = ""),
       )
 
@@ -336,8 +818,29 @@
       mapInstance.on("click", UNCLUSTERED, (e) => {
         const f = e.features?.[0]
         if (!f) return
-        const props = f.properties ?? {}
         const [lng, lat] = f.geometry.coordinates
+        const currentZoom = mapInstance.getZoom()
+        const coincidentLeaves = getCoincidentLeavesAt(lng, lat)
+        const atZoomCap = currentZoom >= maxZoom - 0.01
+
+        if (debug) {
+          console.log("[Spiderfy] unclustered click", {
+            lng,
+            lat,
+            currentZoom,
+            atZoomCap,
+            coincidentLeaves: coincidentLeaves.length,
+          })
+        }
+
+        if (atZoomCap && coincidentLeaves.length > 1) {
+          clearSpider()
+          spiderfyAt({ lng, lat }, coincidentLeaves)
+          return
+        }
+
+        clearSpider()
+        const props = f.properties ?? {}
 
         dispatch("pointclick", { lng, lat, properties: props })
 
@@ -376,6 +879,10 @@
           hoverPopup = null
         }
       })
+
+      mapInstance.on("movestart", clearSpider)
+      mapInstance.on("zoomstart", clearSpider)
+      mapInstance.on("resize", clearSpider)
     }
 
     if (debug) console.log(`[Map] sheet-points: ${featureCount} features`)
@@ -421,6 +928,7 @@
       style: mapDefs,
       center: center,
       zoom: zoom,
+      maxZoom: maxZoom,
     })
 
     // Disable interactions if MAP_INTERACTIVE is false
@@ -498,7 +1006,7 @@
       const center = mapInstance.getCenter()
       const zoom = mapInstance.getZoom()
       if (debug) {
-        console.log(`${center.lng}, ${center.lat}, 'Zoom:', ${zoom}`)
+       // console.log(`${center.lng}, ${center.lat}, 'Zoom:', ${zoom}`)
       }
       //console.log(`${center.lng}, ${center.lat}, 'Zoom:', ${zoom}`)
     }
@@ -641,6 +1149,33 @@
     max-width: 220px;
     font-size: 13px;
     line-height: 1.4;
+  }
+
+  :global(.spider-marker) {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    background: #c70000;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    padding: 0;
+  }
+
+  :global(.spider-legs-overlay) {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 900;
+  }
+
+  :global(.spider-leg) {
+    stroke: rgba(40, 40, 40, 0.55);
+    stroke-width: 1.5;
+  }
+
+  :global(.maplibregl-popup) {
+    z-index: 1100;
   }
 
   @keyframes spin {

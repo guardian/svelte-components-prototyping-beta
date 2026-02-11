@@ -10,8 +10,8 @@
   } from "$lib/stores/googlesheet.svelte.js"
 
   onMount(async () => {
-    setGoogleSheetSheetName("data")
-    setGoogleSheetKey("1Vc3eExG-EbsSWgnpqxQ6x9BeKqpD2hqE7WYcs1kKoB8")
+    setGoogleSheetSheetName("Sheet2")
+    setGoogleSheetKey("18IzHRyw_uwxvDcBZVruk6UzjnftI-PSqSBSRJvhrq4A")
     await googleSheetData()
   })
 
@@ -46,7 +46,7 @@
 {#if state.mapdata.length > 0}
   <Carto
     mapdata={state.mapdata}
-    popupTemplate={"Location: <br/><strong>{Site_Name}</strong>"}
+    popupTemplate={"<strong>{Place}</strong><br/>{Smell}<br/>{Source}"}
     {geoJsonStyles}
     MAP_INTERACTIVE={true}
     headline="Making a map to display data from a Google Sheet"
