@@ -25,6 +25,7 @@
     // }, 60000)
   })
 
+// https://github.com/guardian/interactive-style-library/blob/main/docs/RECIPES.md
 </script>
 
 
@@ -32,9 +33,9 @@
 
   <div id="graphicContainer">
 
-    <div id="figureTitle">Chart headline here</div>
+    <div class="vis-chart-headline">Chart headline here</div>
     
-    <div id="subTitle">Your subtitle here</div>	
+    <div class="vis-chart-standfirst">Your subtitle here</div>	
     
     <div id="chartKey">
       <div class="keyDiv"><span class="keySquare" style="background-color:{categoricalLight[0]};"></span> <span class="keyText">Thing 1</span></div>
@@ -51,7 +52,7 @@
 
     </svg>
 
-    <div id="footer">Guardian graphic. Source: source goes here </div>	
+    <div class="vis-chart-source">Guardian graphic. Source: source goes here </div>	
   
   </div>
 
