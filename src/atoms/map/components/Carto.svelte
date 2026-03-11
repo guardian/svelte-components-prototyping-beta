@@ -211,6 +211,9 @@
       style: mapDefs,
       center: center,
       zoom: zoom,
+      attributionControl: false,
+      maplibreLogo: false,
+      cooperativeGestures: width < 480 ? true : false,
     })
 
     // Disable interactions if MAP_INTERACTIVE is false
@@ -339,11 +342,10 @@
 
 <div class="atom" bind:clientWidth={width}>
   <div id="graphicContainer">
-    <div id="figureTitle" class="src-headline-medium-20">{headline}</div>
 
-    <div id="subTitle" class="src-text-sans-15">
-      {@html subtitle}
-    </div>
+    <div class="vis-chart-headline">{headline}</div>
+    
+    <div class="vis-chart-standfirst">{@html subtitle}</div>
 
     <div
       id="cartoMap"
@@ -358,9 +360,7 @@
       <div id="minimap"></div>
     </div>
 
-    <div id="footer">
-      Guardian graphic. Source: {@html source}
-    </div>
+    <div class="vis-chart-source">{@html source}</div>	
   </div>
 </div>
 
