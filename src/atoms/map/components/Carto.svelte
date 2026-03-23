@@ -1,150 +1,54 @@
 <script>
-  // TO FIX:
-  // Map seems to crop from the left-hand side on mobile
-  // Maybe drop shadow on minimap?
-  // Go through charts CSS and update to use Guardian Source variables
-  // Add a loading state to the map
+  // TODO:
 
-  // Core imports
-  import { onMount, tick } from "svelte"
-  import { createEventDispatcher } from "svelte"
-  import { getJson } from "$lib/helpers/guardian/toolbelt.js"
-  // Guardian approved colour palettes
-  import {
-    categoricalLight,
-    categoricalDark,
-  } from "$lib/helpers/guardian/colours"
-  import maplibregl from "maplibre-gl"
-  import "maplibre-gl/dist/maplibre-gl.css"
-  const { Map, ScaleControl } = maplibregl
-  import { geoMercator, geoPath } from "d3-geo"
-  import { select } from "d3-selection"
+  // Svelte stuff
 
-  import basemap from "$lib/mapstyles/basemap-styles.json"
-  import aus from "$lib/mapstyles/aus-simple.json"
-  // Add darkmode detection here at some point
+  import { onMount, tick } from 'svelte'
+  
+  // Mapping stuff
 
-  // Example for getting chart data from a store
-  //import {getExampleData, exampledata} from '$lib/stores/example.svelte.js';
+  import maplibregl from 'maplibre-gl';
+  import 'maplibre-gl/dist/maplibre-gl.css';
+  const { Map, ScaleControl, NavigationControl } = maplibregl;
+  import { Protocol, PMTiles } from "pmtiles";
+  import { geoOrthographic, geoPath } from 'd3-geo';
+  import { select } from 'd3-selection';
+  import { feature } from 'topojson-client';
+  import basemapLight from '$lib/mapstyles/ml_basemapLight.json';
+  import basemapLabels from '$lib/mapstyles/ml_mapLabels.json';
 
-  let width = $state(620)
-  let height = 500
+  // These need to be re-done from the ground up in a more comprehensive way
+  import disputedBorders from '$lib/mapstyles/disputed_borders.json';
+  import world from '$lib/mapstyles/ne_110m_land.json';
+  
+  // Helpers / utility
+  import { getJson } from '$lib/helpers/guardian/toolbelt.js';
+  import { updateScaleControlPosition, updateMinimap } from '$lib/helpers/mapping/mappingUtils.js'
 
-  // Toggle to disable map interactions (set to false to disable zoom/pan)
+  // Get the settings and stuff
 
-  // For debugging
-
-  // const centerPoint = {
-  //       'type': 'FeatureCollection',
-  //       'features': [
-  //           {
-  //               'type': 'Feature',
-  //               'geometry': {
-  //                   'type': 'Point',
-  //                   'coordinates': center
-  //               }
-  //           }
-  //       ]
-  //   };
-  // const centerStyle = {
-  //   "id":"center-point",
-  //   "type":"circle",
-  //   "source":"center-point",
-  //   "paint":{
-  //     "circle-radius":10,
-  //     "circle-color":"#000"
-  //   }
-  // }
-
-  // GeoJSON styles are now provided by parent components (e.g., Atom.svelte)
-
-  // Component props
   let {
-    geoJsonURL = "https://interactive.guim.co.uk/2026/01/aus-fire-map/VIC-warning.json",
-    geoJsonStyles = [],
-    MAP_INTERACTIVE = true,
-    SHOW_NAVIGATION_CONTROL = false,
-    SHOW_SCALE_CONTROL_BOTTOM_LEFT = false,
-    SHOW_FULLSCREEN_CONTROL = false,
-    SHOW_GEOLOCATE_CONTROL = false,
-    center = [116.03196265904751, -31.90047341428921],
-    zoom = 8,
-    headline = "Perth bushfires",
-    subtitle = "Showing bushfire warning areas. Data last checked {timestamp} (AEST). This map should not be relied on in an emergency, please check the <a href='https://www.emergency.wa.gov.au/' target='_blank'>EmergencyWA website</a> for the latest information",
-    source = "Guardian graphic. Source: <a href='https://www.emergency.wa.gov.au/' target='_blank'>EmergencyWA website</a>, OpenStreetMap",
+    width,
+    height,
+    mapSettings
   } = $props()
 
-  let mapInstance
-  let minimapSvg
-  let minimapPath
-  let viewportRect
-  let minimapProjection
-  let timestamp = $state(null)
-  let isLoading = $state(true)
-  const dispatch = createEventDispatcher()
+  // Map libre setup
 
-  // Function to update minimap viewport rectangle
-  function updateMinimap() {
-    if (!mapInstance || !minimapPath || !viewportRect) return
+  let protocol = new Protocol();
+  maplibregl.addProtocol("pmtiles",protocol.tile);
+  let mapInstance;
+  let minimapSvg;
+  let minimapPath;
+  let viewportRect;
+  let minimapProjection;
 
-    try {
-      // Get current map bounds from the main MapLibre map
-      const bounds = mapInstance.getBounds()
-      const sw = bounds.getSouthWest() // returns {lng, lat}
-      const ne = bounds.getNorthEast() // returns {lng, lat}
-
-      // Validate bounds are reasonable (within Australia's approximate bounds)
-      if (sw.lng < 100 || ne.lng > 160 || sw.lat < -50 || ne.lat > 0) {
-        viewportRect.attr("d", null) // Hide if bounds are invalid
-        return
-      }
-
-      // Create GeoJSON polygon for viewport bounds
-      // D3 expects clockwise exterior rings (area to the right of boundary)
-      // Order: SW -> NW -> NE -> SE -> SW (clockwise)
-      const viewportGeo = {
-        type: "Feature",
-        geometry: {
-          type: "Polygon",
-          coordinates: [
-            [
-              [sw.lng, sw.lat], // SW
-              [sw.lng, ne.lat], // NW
-              [ne.lng, ne.lat], // NE
-              [ne.lng, sw.lat], // SE
-              [sw.lng, sw.lat], // close back to SW
-            ],
-          ],
-        },
-      }
-
-      // Use minimapPath to generate the path
-      const pathData = minimapPath(viewportGeo)
-      if (pathData) {
-        // Calculate viewport size to adjust stroke width for small rectangles
-        const lonRange = ne.lng - sw.lng
-        const latRange = ne.lat - sw.lat
-        const area = lonRange * latRange
-
-        // Increase stroke width when viewport is small (threshold is arbitrary, adjust as needed)
-        const strokeWidth = area < 0.5 ? 4 : area < 2 ? 3 : 2
-
-        viewportRect
-          .attr("d", pathData)
-          .attr("stroke-width", strokeWidth)
-          .style("display", "block")
-      } else {
-        viewportRect.style("display", "none")
-      }
-    } catch (e) {
-      // Silently handle errors
-    }
-  }
+  
 
   // Watch for width changes and resize map
   $effect(() => {
     // Track width changes
-    width
+    width;
     if (mapInstance && mapInstance.loaded()) {
       // Wait for DOM to update, then resize the map
       tick().then(() => {
@@ -152,284 +56,334 @@
         // and container dimensions are updated
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            mapInstance.resize()
-          })
-        })
-      })
+            mapInstance.resize();
+          });
+        });
+      });
     }
-  })
+  });
 
   // Component lifecycle
-  onMount(async () => {
-    // Conditionally fetch GeoJSON if a URL is provided
-    let overlaysSource = null
-    let combinedLayers = [...basemap]
+  onMount(async() => {
+    // Example of fetching data to show
+    // const strikesData = await getJson("https://interactive.guim.co.uk/docsdata/13BFRha2pzO3WTwEIiezHejJv3EtK2O6sm07jmgNMxuU.json");
 
-    if (geoJsonURL && geoJsonURL.trim() !== "") {
-      try {
-        const geojson = await getJson(geoJsonURL)
-        overlaysSource = {
-          type: "geojson",
-          data: geojson,
-        }
-        combinedLayers = [...basemap, ...geoJsonStyles]
-      } catch (e) {
-        // If fetching fails, fall back to basemap only
-        overlaysSource = null
-        combinedLayers = [...basemap]
-      }
-    }
+    const mapStyle =  {
+      ...basemapLight,
+      layers: [...basemapLight.layers, ...basemapLabels.layers]
+    };
 
-    let mapDefs = {
-      version: 8,
-      sources: (() => {
-        const sources = {
-          "vector-tiles": {
-            type: "vector",
-            tiles: [
-              "https://interactive.guim.co.uk/maptiles/world/{z}/{x}/{y}.pbf",
-            ],
-          },
-        }
-        if (overlaysSource) {
-          sources["overlays"] = overlaysSource
-        }
-        return sources
-      })(),
-        // 'center-point': {
-        //   "type": "geojson",
-        //   "data": centerPoint
-        // }
-      sprite: "",
-      glyphs:
-        "https://interactive.guim.co.uk/maptiles/fonts/{fontstack}/{range}.pbf",
-      layers: combinedLayers,
-    }
 
     mapInstance = new Map({
-      container: "cartoMap",
-      style: mapDefs,
-      center: center,
-      zoom: zoom,
+      container: 'map1',
+      style: mapStyle,
+      center: mapSettings.center,
+      cooperativeGestures: width < 480 ? true : false,
+      zoom: mapSettings.zoom,
+      attributionControl: false
     })
 
-    // Disable interactions if MAP_INTERACTIVE is false
-    if (!MAP_INTERACTIVE) {
-      mapInstance.dragPan.disable()
-      mapInstance.scrollZoom.disable()
-      mapInstance.boxZoom.disable()
-      mapInstance.doubleClickZoom.disable()
-      mapInstance.touchZoomRotate.disable()
+  
+    // Disable interactions if mapSettings.interactive is false
+
+    if (!mapSettings.interactive) {
+      mapInstance.dragPan.disable();
+      mapInstance.scrollZoom.disable();
+      mapInstance.boxZoom.disable();
+      mapInstance.doubleClickZoom.disable();
+      mapInstance.touchZoomRotate.disable();
     }
 
-    if (SHOW_NAVIGATION_CONTROL) {
-      mapInstance.addControl(new maplibregl.NavigationControl(), "top-right")
-    }
-    if (SHOW_SCALE_CONTROL_BOTTOM_LEFT) {
-      mapInstance.addControl(
-        new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }),
-        "bottom-left",
-      )
-    }
-    if (SHOW_FULLSCREEN_CONTROL) {
-      mapInstance.addControl(new maplibregl.FullscreenControl(), "top-right")
-    }
-    if (SHOW_GEOLOCATE_CONTROL) {
-      mapInstance.addControl(
-        new maplibregl.GeolocateControl({
-          positionOptions: { enableHighAccuracy: true },
-        }),
-        "top-right",
-      )
-    }
+    mapInstance.addControl(new ScaleControl({
+      unit: 'imperial'
+    }), 'bottom-right');
+
+    mapInstance.addControl(new ScaleControl({
+      unit: 'metric'
+    }), 'bottom-right');
+
+    mapInstance.addControl(new NavigationControl({
+      showCompass: false
+    }), 'top-left');
 
 
 
-    mapInstance.addControl(
-      new ScaleControl({
-        unit: "metric",
-      }),
-      "bottom-right",
-    )
+    // Convert TopoJSON world land boundaries to GeoJSON FeatureCollection
+    const worldGeo = feature(world, world.objects.ne_110m_land);
 
     // Set up minimap
-    const minimapWidth = 150
-    const minimapHeight = 100
+    // Maybe later move all the minimap to its own component because it will look neater
 
-    // Use identity projection for Web Mercator coordinates
-    minimapProjection = geoMercator().fitExtent(
-      [
-        [0, 0],
-        [minimapWidth, minimapHeight],
-      ],
-      aus,
-    )
+    const minimapWidth = 150;
+    const minimapHeight = 100;
 
-    minimapPath = geoPath().projection(minimapProjection)
+    // Use orthographic projection for globe-style minimap, centered on main map `center`
+    // Fix this later to update as required with panning etc
+
+    minimapProjection = geoOrthographic()
+      .rotate([-mapSettings.center[0], -mapSettings.center[1]])
+      .fitExtent([[0, 0], [minimapWidth, minimapHeight]], worldGeo);
+
+    minimapPath = geoPath().projection(minimapProjection);
 
     // Create SVG for minimap
-    minimapSvg = select("#minimap")
-      .append("svg")
-      .attr("width", minimapWidth)
-      .attr("height", minimapHeight)
+    minimapSvg = select('#minimap1')
+      .append('svg')
+      .attr('width', minimapWidth)
+      .attr('height', minimapHeight);
 
-    minimapSvg
-      .append("g")
-      .selectAll("path")
-      .data(aus.features)
+    // Circular clip path and outline
+    const radius = Math.min(minimapWidth, minimapHeight) / 2;
+    const cx = minimapWidth / 2;
+    const cy = minimapHeight / 2;
+
+    const defs = minimapSvg.append('defs');
+    
+    defs.append('clipPath')
+      .attr('id', 'minimap-clip')
+      .append('circle')
+      .attr('cx', cx)
+      .attr('cy', cy)
+      .attr('r', radius);
+
+    // Group for globe content, clipped to circle
+    const minimapGroup = minimapSvg.append('g')
+      .attr('clip-path', 'url(#minimap-clip)');
+
+    // White circular background so non-land areas inside globe are white
+    minimapGroup.append('circle')
+      .attr('cx', cx)
+      .attr('cy', cy)
+      .attr('r', radius)
+      .attr('fill', '#FFFFFF')
+      .attr('stroke', 'none');
+
+
+    minimapSvg.append('circle')
+      .attr('cx', cx)
+      .attr('cy', cy)
+      .attr('r', radius)
+      .attr('fill', 'none')
+      .attr('stroke', '#000')
+      .attr('stroke-width', 1);  
+
+    minimapGroup
+      .selectAll('path')
+      .data(worldGeo.features)
       .enter()
-      .append("path")
-      .attr("d", minimapPath)
-      .attr("fill", "#FFF")
-      .attr("stroke", "#000")
-      .attr("stroke-width", 1)
-      .attr("fill-rule", "evenodd")
+      .append('path')
+        .attr('d', minimapPath)
+        .attr('fill', '#F3F3F3')
+        .attr('stroke', '#121212')
+        .attr('stroke-width', 0.5)
+        .attr('fill-rule', 'evenodd');
 
-    // Add viewport rectangle (on top of Australia)
-    viewportRect = minimapSvg
-      .append("path")
-      .attr("fill", "rgba(255, 0, 0, 0.6)")
-      .attr("stroke", "#c70000")
-      .attr("stroke-width", 2)
+    // Add viewport rectangle (on top of globe, inside clip)
+    viewportRect = minimapGroup.append('path')
+      .attr('fill', 'none')
+      .attr('stroke', '#CC0A11')
+      .attr('stroke-width', 1);
 
     // Function to log map center and zoom
+
     function logMapState() {
-      const center = mapInstance.getCenter()
-      const zoom = mapInstance.getZoom()
-      console.log(`${center.lng}, ${center.lat}, 'Zoom:', ${zoom}`)
+      const center = mapInstance.getCenter();
+      const zoom = mapInstance.getZoom();
+      const bounds = mapInstance.getBounds();
+      const sw = bounds.getSouthWest();
+      const ne = bounds.getNorthEast();
+      console.log(
+        `Center: ${center.lng}, ${center.lat}, Zoom: ${zoom}`,
+        `Bounds SW: ${sw.lng}, ${sw.lat}, NE: ${ne.lng}, ${ne.lat}`
+      );
     }
 
-    // Function to set up map after it loads
+    // Function to set up map after it loads  
     function setupMapAfterLoad() {
-      updateMinimap() // Initial update
+      updateMinimap(mapInstance, minimapPath, viewportRect); // Initial update
+      updateScaleControlPosition();
       // Listen to map movement and zoom events
-      mapInstance.on("move", () => {
-        updateMinimap()
-        logMapState()
-      })
-      mapInstance.on("moveend", updateMinimap)
-      mapInstance.on("zoom", () => {
-        updateMinimap()
-        logMapState()
-      })
-      mapInstance.on("zoomend", updateMinimap)
-      mapInstance.on("resize", updateMinimap)
-      isLoading = false
+      mapInstance.on('move', () => {
+        updateMinimap(mapInstance, minimapPath, viewportRect);
+        logMapState();
+        updateScaleControlPosition();
+      });
+      // IMPORTANT: pass a function reference. Passing `updateMinimap(...)` would call it immediately
+      // and register `undefined` as the handler, which MapLibre will later try to `.call` during events.
+      mapInstance.on('moveend', () => updateMinimap(mapInstance, minimapPath, viewportRect));
+      mapInstance.on('zoom', () => {
+        updateMinimap(mapInstance, minimapPath, viewportRect);
+        logMapState();
+        updateScaleControlPosition();
+      });
+      mapInstance.on('zoomend', () => updateMinimap(mapInstance, minimapPath, viewportRect));
+      mapInstance.on('resize', () => updateMinimap(mapInstance, minimapPath, viewportRect));
     }
 
     // Check if map is already loaded (can happen in article format)
     if (mapInstance.loaded()) {
-      setupMapAfterLoad()
+      setupMapAfterLoad();
     } else {
-      mapInstance.once("load", setupMapAfterLoad)
+      mapInstance.once('load', setupMapAfterLoad);
     }
 
-    mapInstance.on("load", () => {
-      mapInstance.setCenter(center)
-      mapInstance.resize()
+    mapInstance.on('load', () => {
+      // mapInstance.setCenter(center);
+      // mapInstance.resize();
+      const canvas = mapInstance.getCanvas();
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      const aspect = width / height;
+      // optional padding for desktop / mobile, currently not in use 
+      // let padding = aspect > 1 ? paddingDesktop : paddingMobile;
+     
+      mapInstance.fitBounds(mapSettings.viewBounds, {
+        duration: 0
+      });
+
+
+      // Manual disputed borders from file, these need to be updated
+      // There are also dispuated borders in the underlying pmtiles data
+      // We probably need to discuss disputed borders approach generally
+
+
+      mapInstance.addSource('disputed-borders', {
+        type: 'geojson',
+        data: disputedBorders
+      });
+
+      mapInstance.addLayer({
+        id: 'disputed-borders-layer',
+        type: 'line',
+        source: 'disputed-borders',
+        paint: {
+          'line-color': '#A1A1A1',
+          'line-width': [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                4, 0.4,
+                8, 0.6,
+                12, 0.8,
+                16, 1.2
+                ],
+          'line-dasharray': [1.5, 1.5]
+        }
+      });
+
+
+      // All the map settings toggles
+
+      mapInstance.setLayoutProperty("county", "visibility", mapSettings.showCounties ? "visible" : "none");
+      mapInstance.setLayoutProperty("city-labels", "visibility", mapSettings.showCityLabels ? "visible" : "none");
+      mapInstance.setLayoutProperty("town-labels", "visibility", mapSettings.showTownAndLocalityLabels ? "visible" : "none");
+      mapInstance.setLayoutProperty("country-labels", "visibility", mapSettings.showCountryLabels ? "visible" : "none");
+      mapInstance.setLayoutProperty("capital-labels-lowzoom", "visibility", mapSettings.showCapitalLabels ? "visible" : "none");
+      mapInstance.setLayoutProperty("capital-labels-highzoom", "visibility", mapSettings.showCapitalLabels ? "visible" : "none");
+
+      // Demo code to highlight a particular country label in the same style that graphics uses
+      // To do: add the option to do this at the spreadsheet level
+
+      mapInstance.setFilter("country-labels", [
+        "all",
+        ["==", ["get", "kind"], "country"],
+        ["!=", ["get", "name:en"], "Iran"]
+      ]);
+
+      mapInstance.addLayer({
+        id: "places-labels-iran",
+        type: "symbol",
+        source: "pmvt",
+        "source-layer": "places",
+        filter: ["all", ["==", ["get", "kind"], "country"], ["==", ["get", "name:en"], "Iran"]],
+        layout: {
+          "text-field": ["get", "name:en"],
+          "text-font": ["GH Guardian Headline Bold"], // or whatever bold family you have
+          "text-size": 16
+        },
+        paint: {
+          "text-color": "#121212",
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 1
+        }
+      }, "country-labels"); 
+
+
+      // Demo code to replace label text from the underlying data
+      // We need to go through the style guide and check for country names
+
+      mapInstance.setLayoutProperty("country-labels", "text-field", [
+      "case",
+      ["==", ["get", "name:en"], "United Arab Emirates"],
+      "UAE",                  // replacement text
+      ["get", "name:en"]      // default: original label
+      ]);  
+
+
+  //   mapInstance.addSource('strikes', {
+  //     type: 'geojson',
+  //     data: strikesGeoJSON
+  //   }); 
+
+  //   // console.log(strikesGeoJSON);
+  //   mapInstance.addLayer({
+  //     id: 'strikes-layer',
+  //     type: 'circle',
+  //     source: 'strikes',
+  //     paint: {
+  //       'circle-radius': 3,
+  //       'circle-color': ['get', 'color'],
+  //       'circle-stroke-color': '#ffffff',
+  //       'circle-stroke-width': 1,
+  //       'circle-opacity': [
+  //         'match',
+  //         ['get', 'recency'],
+  //         'old', 0.5,   // old strikes
+  //         0.9           // default (recent or anything else)
+  //       ]
+  //     }
+  //   },
+  //   'town-labels'
+  // );
+
+    // Log data for clicked strike features
+    // mapInstance.on('click', 'strikes-layer', (e) => {
+    //   const feature = e.features && e.features[0];
+    //   if (feature) {
+    //     console.log('Strike clicked:', feature.properties, feature);
+    //   }
+    // });
+
+
+
     })
 
     // mapInstance.on('resize', () => {
     //   console.log('resize');
     //   mapInstance.setCenter(center);
     //   // mapInstance.resize();
-    // });
+    // }); 
   })
+
 </script>
 
-<div class="atom" bind:clientWidth={width}>
-  <div id="graphicContainer">
-    <div id="figureTitle" class="src-headline-medium-20">{headline}</div>
 
-    <div id="subTitle" class="src-text-sans-15">
-      {@html subtitle}
-    </div>
-
-    <div
-      id="cartoMap"
-      class={MAP_INTERACTIVE ? "interactive" : "non-interactive"}
-    >
-      {#if isLoading}
-        <div class="loading-overlay" role="status" aria-live="polite">
-          <div class="spinner" aria-hidden="true"></div>
-          <span class="loading-text">Loading map…</span>
-        </div>
-      {/if}
-      <div id="minimap"></div>
-    </div>
-
-    <div id="footer">
-      Guardian graphic. Source: {@html source}
-    </div>
+  <div id="map1" class="{mapSettings.interactive ? 'interactive' : 'non-interactive'}">
+      <div id="minimap1" class="minimap"></div>
   </div>
-</div>
 
+   
 <style lang="scss">
-  :global(
-      .non-interactive .maplibregl-canvas-container.maplibregl-interactive
-    ) {
-    cursor: default !important;
+
+  :global(.non-interactive .maplibregl-canvas-container.maplibregl-interactive) {
+      cursor: default !important;
   }
 
-  .atom {
-    width: 100%;
-    position: relative;
 
-    #cartoMap {
+    #map1 {
       width: 100%;
       height: 500px;
-      position: relative;
+    } 
+ 
 
-      .loading-overlay {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-        background: rgba(255, 255, 255, 0.8);
-        z-index: 2000;
-
-        .spinner {
-          width: 20px;
-          height: 20px;
-          border: 2px solid #ccc;
-          border-top-color: #333;
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-        }
-
-        .loading-text {
-          font-size: 14px;
-          color: #333;
-        }
-      }
-    }
-
-    :global(.maplibregl-ctrl-scale) {
-      background: none;
-      border-bottom: 2px solid #333;
-      border-left: none;
-      border-right: none;
-      border-top: #333;
-      box-sizing: border-box;
-      color: #333;
-      font-size: 10px;
-      padding: 0 5px;
-      white-space: nowrap;
-    }
-
-    #minimap {
-      position: absolute;
-      bottom: 0px;
-      left: -15px;
-      z-index: 1000;
-    }
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
 </style>

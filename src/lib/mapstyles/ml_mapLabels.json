@@ -1,0 +1,181 @@
+{
+    "layers": [
+        {
+            "id": "town-labels",
+            "source": "pmvt",
+            "source-layer": "places",
+            "type": "symbol",
+            "minzoom": 9,
+            "filter": [
+                "all",
+                [
+                    "any",
+                    ["==", ["get", "kind"], "locality"],
+                    ["==", ["get", "kind"], "town"]
+                ],
+                ["!=", ["get", "capital"], "yes"]
+            ],
+            "layout": {
+                "visibility": "visible",
+                "icon-image": "other-country-city-small",
+                "icon-anchor": "center",
+                "icon-allow-overlap": false,
+                "icon-optional": false,
+                "text-field": [
+                    "coalesce",
+                    ["get", "name:en"],
+                    ["get", "name"],
+                    ""
+                ],
+                "text-font": [
+                    "Guardian Text Sans Regular"
+                ],
+                "text-size": 13,
+                "text-variable-anchor": ["left", "right", "top", "bottom"],
+                "text-allow-overlap": false,
+                "text-optional": false,
+                "text-offset": [0.2, 0.4]
+            },
+            "paint": {
+                "text-color": "#707070",
+                "text-halo-color": "#ffffff",
+                "text-halo-width": 1
+            }
+        },
+        {
+            "id": "city-labels",
+            "source": "pmvt",
+            "source-layer": "places",
+            "type": "symbol",
+            "minzoom": 5,
+            "filter": [
+                "all",
+                [
+                    "any",
+                    ["==", ["get", "kind_detail"], "city"]
+                ],
+                ["!=", ["get", "capital"], "yes"]
+            ],
+            "layout": {
+                "visibility": "visible",
+                "icon-image": "other-country-city-small",
+                "icon-anchor": "center",
+                "icon-allow-overlap": false,
+                "icon-optional": false,
+                "text-field": [
+                    "coalesce",
+                    ["get", "name:en"],
+                    ["get", "name"],
+                    ""
+                ],
+                "text-font": [
+                    "Guardian Text Sans Regular"
+                ],
+                "text-size": 13,
+                "text-variable-anchor": ["left", "right", "top", "bottom"],
+                "text-allow-overlap": false,
+                "text-optional": false,
+                "text-offset": [0.2, 0.4]
+            },
+            "paint": {
+                "text-color": "#707070",
+                "text-halo-color": "#ffffff",
+                "text-halo-width": 1
+            }
+        },
+        {
+            "id": "country-labels",
+            "source": "pmvt",
+            "source-layer": "places",
+            "type": "symbol",
+            "minzoom": 0,
+            "filter": [
+                "any",
+                ["==", ["get", "kind"], "country"]
+            ],
+            "layout": {
+                "visibility": "visible",
+                "text-field": [
+                    "coalesce",
+                    ["get", "name:en"],
+                    ["get", "name"],
+                    ""
+                ],
+                "text-font": [
+                    "GH Guardian Headline Regular"
+                ],
+                "text-size": 13,
+                "text-variable-anchor": ["center", "top", "bottom", "left", "right"]
+            },
+            "paint": {
+                "text-color": "#707070",
+                "text-halo-color": "#ffffff",
+                "text-halo-width": 1
+            }
+        },
+        {
+            "id": "capital-labels-lowzoom",
+            "source": "pmvt",
+            "source-layer": "places",
+            "type": "symbol",
+            "minzoom": 5,
+            "maxzoom": 10,
+            "filter": ["==", ["get", "capital"], "yes"],
+            "layout": {
+              "icon-image": "other-country-capital-small",
+                "icon-anchor": "center",
+                "icon-allow-overlap": false,
+                "icon-optional": false,
+                "text-field": [
+                    "coalesce",
+                    ["get", "name:en"],
+                    ["get", "name"],
+                    ""
+                ],
+                "text-allow-overlap": false,
+                "text-optional": false,
+                "text-font": ["Guardian Text Sans Medium"],
+                "text-size": 13,
+                "text-variable-anchor": ["left", "right", "top", "bottom"],
+                "text-offset": [0.2, 0]
+            },
+            "paint": {
+              "text-color": "#707070",
+              "text-halo-color": "#ffffff",
+              "text-halo-width": 1
+            }
+          },
+        {
+            "id": "capital-labels-highzoom",
+            "source": "pmvt",
+            "source-layer": "places",
+            "type": "symbol",
+            "minzoom": 10,
+            "filter": [
+                "any",
+                ["==", ["get", "capital"], "yes"]
+            ],
+            "layout": {
+                "visibility": "visible",
+                "text-allow-overlap": false,
+                "text-field": [
+                    "coalesce",
+                    ["get", "name:en"],
+                    ["get", "name"],
+                    ""
+                ],
+                "text-font": [
+                     "GH Guardian Headline Medium"
+                ],
+                "text-size": 16,
+                "text-variable-anchor": ["left", "right", "top", "bottom"],
+                "text-optional": false
+            },
+            "paint": {
+                "text-color": "#121212",
+                "text-halo-color": "#ffffff",
+                "text-halo-width": 1
+            }
+        }
+    ]
+}

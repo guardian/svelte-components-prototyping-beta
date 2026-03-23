@@ -119,3 +119,6 @@
 
     return {x, y} // the pixel x,y value of this point on the map image
   }
+
+
+ 

@@ -3,7 +3,7 @@ import Atom from "./components/Atom.svelte"
 import { isApp } from "$lib/helpers/platform"
 
 // enable this when creating an atom for the article template
-// import '$lib/helpers/resizeFrame';
+import '$lib/helpers/resizeFrame';
 
 // create scrollbar width CSS variable
 import "$lib/helpers/scrollbarWidth"

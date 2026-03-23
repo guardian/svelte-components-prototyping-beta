@@ -1,0 +1,344 @@
+{
+    "version": 8,
+    "sources": {
+        "pmvt": {
+            "type": "vector",
+            "url": "pmtiles://https://interactive.guim.co.uk/2024/09/pmtiles/v902/20250113.pmtiles"
+        },
+        "hillshade-source": {
+            "type": "raster-dem",
+            "url": "pmtiles://https://interactive.guim.co.uk/maptiles/pmtiles/2026/mapterhorn/planet.pmtiles",
+            "tileSize": 256,
+            "maxzoom": 12,
+            "encoding": "terrarium"
+        }
+    },
+    "sprite": "https://interactive.guim.co.uk/maptiles/sprites/gv-icons/gv-map-icons",
+    "glyphs": "https://interactive.guim.co.uk/maptiles/fonts/{fontstack}/{range}.pbf",
+    "layers": [
+        {
+            "id": "background",
+            "type": "background",
+            "paint": {
+                "background-color": "#fff"
+            }
+        },
+        {
+            "id": "land",
+            "type": "fill",
+            "source": "pmvt",
+            "source-layer": "earth",
+            "paint": {
+                "fill-color": "#fff"
+            }
+        },
+
+      
+        {
+            "id": "country",
+            "source": "pmvt",
+            "source-layer": "boundaries",
+            "type": "line",
+            "filter": [
+                "all",
+                [
+                    "==",
+                    "kind",
+                    "country"
+                ],
+                [
+                    "!=",
+                    "disputed",
+                    true
+                ]
+            ],
+            "paint": {
+            "line-color": "#A1A1A1",
+            "line-width": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                4, 0.4,
+                8, 0.6,
+                12, 0.8,
+                16, 1.2
+                ]
+            }
+        },
+        {
+            "id": "country-disputed",
+            "source": "pmvt",
+            "source-layer": "boundaries",
+            "type": "line",
+            "filter": [
+                "all",
+                [
+                    "==",
+                    "disputed",
+                    true
+                ]
+            ],
+            "paint": {
+            "line-color": "#A1A1A1",
+            "line-width": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                4, 0.4,
+                8, 0.6,
+                12, 0.8,
+                16, 1.2
+                ],
+            "line-dasharray": [2, 2]
+            }
+        },
+        {
+            "id": "county",
+            "source": "pmvt",
+            "source-layer": "boundaries",
+            "type": "line",
+            "layout": {
+                "visibility": "none"
+            },
+            "filter": [
+                "all",
+                [
+                    "==",
+                    "kind",
+                    "county"
+                ]
+            ],
+            "paint": {
+            "line-color": "#A1A1A1",
+            "line-dasharray": [
+                2,
+                2
+            ],
+            "line-width": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                4, 0.4,
+                8, 0.6,
+                12, 0.8,
+                16, 1.2
+                ]
+            }
+        },
+        {
+            "id": "water",
+            "type": "fill",
+            "source": "pmvt",
+            "source-layer": "water",
+            "filter": [
+                "all",
+                [
+                    "==",
+                    "$type",
+                    "Polygon"
+                ],
+                [
+                    "!=",
+                    "intermittent",
+                    1
+                ],
+                [
+                    "!=",
+                    "brunnel",
+                    "tunnel"
+                ]
+            ],
+            "layout": {
+                "visibility": "visible"
+            },
+            "paint": {
+                "fill-color": "#dbebf7"
+            }
+        },
+      {
+      "id": "landuse_urban",
+      "type": "fill",
+      "source": "pmvt",
+      "source-layer": "landuse",
+      "minzoom": 10,
+      "maxzoom": 16,
+      "filter": [
+        "all",
+        ["==", "$type", "Polygon"],
+        [
+          "in",
+          "kind",
+          "railway",
+          "military",
+          "residential",
+          "commercial",
+          "industrial",
+          "school",
+          "university",
+          "kindergarten",
+          "college",
+          "library",
+          "hospital",
+          "stadium",
+          "zoo",
+          "neighbourhood",
+          "townhall"
+        ]
+      ],
+      "layout": {
+        "visibility": "visible"
+      },
+      "paint": {
+        "fill-opacity": {
+          "base": 0.3,
+          "stops": [
+            [10, 0.3],
+            [14, 0.6]
+          ]
+        },
+        "fill-color": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                10, "#e8e8e8",  
+                13, "#fcfcfc" 
+                ]
+
+      }
+    },
+    {
+      "id": "park",
+      "type": "fill",
+      "source": "pmvt",
+      "source-layer": "landuse",
+      "minzoom": 8,
+      "filter": [
+        "all",
+        ["==", "$type", "Polygon"],
+        [
+          "in",
+          "kind",
+          "park",
+          "national_park",
+          "nature_reserve",
+          "garden",
+          "golf_course",
+          "dog_park",
+          "playground",
+          "recreation_ground"
+        ]
+      ],
+      "layout": {
+        "visibility": "visible"
+      },
+      "paint": {
+        "fill-color": "rgba(220, 242, 221, 1)"
+      }
+    },
+{
+  "id": "hills",
+  "type": "hillshade",
+  "source": "hillshade-source",
+  "layout": {
+    "visibility": "visible"
+  },
+  "paint": {
+    "hillshade-illumination-anchor": "viewport",
+    "hillshade-illumination-direction": 335,
+
+    "hillshade-exaggeration": [
+      "interpolate",
+      ["linear"],
+      ["zoom"],
+      0, 0.6,
+      14, 0.5
+    ],
+
+    "hillshade-shadow-color": "rgba(0, 0, 0, 0.18)",
+    "hillshade-highlight-color": "rgba(255, 255, 255, 0.38)",
+    "hillshade-accent-color": "rgba(0, 0, 0, 0.04)"
+  }
+},
+        {
+            "id": "building",
+            "type": "fill",
+            "source": "pmvt",
+            "source-layer": "buildings",
+            "minzoom": 11,
+            "paint": {
+                "fill-color": [
+                    "interpolate",
+                    [
+                        "linear"
+                    ],
+                    [
+                        "zoom"
+                    ],
+                    13,
+                    "hsla(0, 0%, 86.27%, 0.8)",
+                    16,
+                    "hsla(0, 0%, 86.27%, 0.8)"
+                ],
+                "fill-opacity": [
+                    "interpolate",
+                    [
+                        "linear"
+                    ],
+                    [
+                        "zoom"
+                    ],
+                    11,
+                    0.4,
+                    16,
+                    1
+                ],
+                "fill-outline-color": "hsla(0, 0%, 72.94%, 1)"
+            }
+        },
+        {
+            "id": "roads",
+            "type": "line",
+            "source": "pmvt",
+            "source-layer": "roads",
+            "minzoom": 5,
+            "filter": [
+                "all",
+                [
+                    "!=",
+                    "is_tunnel",
+                    true
+                ],
+                [
+                    "!=",
+                    "kind",
+                    "path"
+                ],
+                [
+                    "!=",
+                    "kind",
+                    "ferry"
+                ]
+            ],
+            "paint": {
+                "line-color": "#dcdcdc",
+                "line-width": [
+                    "interpolate",
+                    [
+                        "linear"
+                    ],
+                    [
+                        "zoom"
+                    ],
+                    5,
+                    0.35,
+                    10,
+                    0.6,
+                    15,
+                    0.9
+                ]
+            }
+        }
+       
+    ],
+    "id": "uf5thjlny"
+}

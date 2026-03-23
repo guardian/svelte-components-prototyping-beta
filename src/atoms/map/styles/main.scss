@@ -8,6 +8,8 @@
 );
 
 @import "interactive-style-library/source/all.css";
+@import "$lib/styles/chartKey.scss";
+@import "$lib/styles/mapStyles.scss";
 
 body {
   @include light-mode-colors;

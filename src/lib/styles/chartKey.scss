@@ -1,0 +1,54 @@
+.atom {
+
+
+
+    .vis-chart .vis-chart-legend-list, .vis-chart-legend-list    {
+        gap:0px;
+    }
+
+    .keyText {
+        font-size:13px;
+        margin-left:4px;
+        font-family:'Guardian Text Sans Web', 'Agate Sans', sans-serif;
+        color:var(--secondary-text-color);
+    }
+
+    #chartKey div {
+        margin-right:10px;
+    }
+
+    #chartKey {
+        margin-bottom: 10px;
+    }
+
+    #chartKey div:first-child {
+        margin-left: 0px;
+    }
+
+    .keyDiv {
+        display: inline-block;
+        strong {
+            margin-right:10px;
+        }
+
+        height:20px;
+    }
+
+    .keyDiv .keyCircle:first-of-type {
+        margin-left:0;
+    }
+
+    .keyCircle {
+        width:8px;
+        height:8px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-left:10px;
+    }
+
+    .keySquare {
+        width:10px;
+        height:10px;
+        display: inline-block;
+    }
+}
