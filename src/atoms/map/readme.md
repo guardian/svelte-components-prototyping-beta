@@ -5,6 +5,7 @@ A template which comes with zoomy map in the same style as that used by Guardian
 ### To do
 
 - [ ] Review styles with Graphics desk
+- [ ] Add nice pointy labels
 - [ ] Figure out a centralised approach to disputed borders
 - [ ] Labels still aren't quite right at all zooms, some empty dots at very high zoom
 - [ ] Sea and ocean labels
