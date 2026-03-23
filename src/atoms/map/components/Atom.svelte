@@ -1,6 +1,6 @@
 <script>
   import Carto from "./Carto.svelte"
-  import Resizer from "$lib/components/guardian/Resizer.svelte"
+  // import Resizer from "$lib/components/guardian/Resizer.svelte"
   import { categoricalLight, categoricalDark } from '$lib/helpers/guardian/colours';
   
   let { name } = $props()
@@ -24,7 +24,7 @@
 
 
 
-<Resizer atomName="#gv-atom" />
+<!-- <Resizer atomName="#{name}" /> -->
 
 <div class="atom vis-chart" bind:clientWidth={width}>
 

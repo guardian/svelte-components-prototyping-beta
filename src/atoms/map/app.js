@@ -14,7 +14,7 @@ let app
 
 app = hydrate(Atom, {
   target: document.getElementById("gv-atom"),
-  props: { name: "atom" },
+  props: { name: "gv-atom" },
 })
 
 export default app
