@@ -284,29 +284,33 @@
       // Demo code to highlight a particular country label in the same style that graphics uses
       // To do: add the option to do this at the spreadsheet level
 
-      mapInstance.setFilter("country-labels", [
-        "all",
-        ["==", ["get", "kind"], "country"],
-        ["!=", ["get", "name:en"], "Iran"]
-      ]);
+      if (mapSettings.highlightCountry) {
+        
+        mapInstance.setFilter("country-labels", [
+          "all",
+          ["==", ["get", "kind"], "country"],
+          ["!=", ["get", "name:en"], mapSettings.highlightCountry]
+        ]);
 
-      mapInstance.addLayer({
-        id: "places-labels-iran",
-        type: "symbol",
-        source: "pmvt",
-        "source-layer": "places",
-        filter: ["all", ["==", ["get", "kind"], "country"], ["==", ["get", "name:en"], "Iran"]],
-        layout: {
-          "text-field": ["get", "name:en"],
-          "text-font": ["GH Guardian Headline Bold"], // or whatever bold family you have
-          "text-size": 16
-        },
-        paint: {
-          "text-color": "#121212",
-          "text-halo-color": "#ffffff",
-          "text-halo-width": 1
-        }
-      }, "country-labels"); 
+        mapInstance.addLayer({
+          id: "places-labels-iran",
+          type: "symbol",
+          source: "pmvt",
+          "source-layer": "places",
+          filter: ["all", ["==", ["get", "kind"], "country"], ["==", ["get", "name:en"], mapSettings.highlightCountry]],
+          layout: {
+            "text-field": ["get", "name:en"],
+            "text-font": ["GH Guardian Headline Bold"], // or whatever bold family you have
+            "text-size": 16
+          },
+          paint: {
+            "text-color": "#121212",
+            "text-halo-color": "#ffffff",
+            "text-halo-width": 1
+          }
+        }, "country-labels"); 
+
+      }
 
 
       // Demo code to replace label text from the underlying data

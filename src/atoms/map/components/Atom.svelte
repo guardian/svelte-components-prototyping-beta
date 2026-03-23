@@ -17,7 +17,8 @@
       showCapitalLabels: true,
       showTownAndLocalityLabels: true,
       showCountryLabels: true,
-      showMiniMap: true
+      showMiniMap: true,
+      highlightCountry: "Lebanon"
     })
   
 </script>
