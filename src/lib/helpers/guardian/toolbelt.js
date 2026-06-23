@@ -544,6 +544,22 @@ export function dateChecker(dt, start, end) {
 
 }
 
+export function melt(data, idVars, varName = "variable", valueName = "value") {
+  return data.flatMap(row => {
+    const idValues = Object.fromEntries(
+      idVars.map(key => [key, row[key]])
+    );
+
+    return Object.entries(row)
+      .filter(([key]) => !idVars.includes(key))
+      .map(([key, value]) => ({
+        ...idValues,
+        [varName]: key,
+        [valueName]: value
+      }));
+  });
+}
+
 
 // =============================================================================
 // EXPORTS
