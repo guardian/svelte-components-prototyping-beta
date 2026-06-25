@@ -6,7 +6,7 @@
   import "maplibre-gl/dist/maplibre-gl.css"
   const { Map, ScaleControl, NavigationControl } = maplibregl
   import { Protocol } from "pmtiles"
-  import { geoOrthographic, geoPath, geoCentroid } from "d3-geo"
+  import { geoOrthographic, geoPath } from "d3-geo"
   import { select } from "d3-selection"
   import { feature } from "topojson-client"
   import Resizer from "$lib/components/guardian/Resizer.svelte"
@@ -15,8 +15,6 @@
   import basemapLight from "$lib/mapstyles/ml_basemapLight.json"
   import basemapLabels from "$lib/mapstyles/ml_mapLabels.json"
   import world from "$lib/mapstyles/ne_110m_land.json"
-  // Australian state boundaries (TopoJSON), shown when SHOW_STATE_BOUNDARIES is on
-  import ausStates from "$lib/mapstyles/aus-states.json"
 
   // Shared minimap + scale helpers
   import {
@@ -75,6 +73,13 @@
   const STATE_CAPITAL_DOT_LAYER = "au-state-capital-dots"
   const STATE_CAPITAL_LABEL_LAYER = "au-state-capital-labels"
 
+  // Hosted vector tiles for the state/territory boundaries (built + uploaded
+  // with the tileshop pipeline from the ABS ASGS 2021 shapefile). The tileset
+  // contains a single layer, "states", at zoom 0–7.
+  const STATE_TILES_URL =
+    "https://interactive.guim.co.uk/embed/upload/tileshop/australian-states/{z}/{x}/{y}.pbf"
+  const STATE_SOURCE_LAYER = "states"
+
   // Base map place-label layers that could also label our capital cities.
   // While our capitals are shown, these are filtered to exclude the capital
   // names so a capital city is never labelled twice.
@@ -107,39 +112,26 @@
   // Names our own capital layer renders, used to suppress base map duplicates.
   const CAPITAL_NAMES = AU_STATE_CAPITALS.features.map((f) => f.properties.name)
 
-  // Planar (shoelace) area of a polygon ring; used to pick a state's main landmass.
-  function ringArea(ring) {
-    let area = 0
-    for (let i = 0, n = ring.length, j = n - 1; i < n; j = i++) {
-      area += ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1]
-    }
-    return area / 2
-  }
-
-  // One label point per state, placed at the centroid of its largest polygon
-  // (so MultiPolygon states like WA/QLD get a single label on the mainland).
-  function buildStateLabelPoints(statesGeo) {
-    const features = statesGeo.features.map((f) => {
-      const geom = f.geometry
-      let largest = geom.coordinates
-      if (geom.type === "MultiPolygon") {
-        let maxArea = -Infinity
-        for (const poly of geom.coordinates) {
-          const area = Math.abs(ringArea(poly[0]))
-          if (area > maxArea) {
-            maxArea = area
-            largest = poly
-          }
-        }
-      }
-      const centroid = geoCentroid({ type: "Polygon", coordinates: largest })
-      return {
-        type: "Feature",
-        geometry: { type: "Point", coordinates: centroid },
-        properties: { name: f.properties.name },
-      }
-    })
-    return { type: "FeatureCollection", features }
+  // One label point per state/territory, placed on the main landmass. The
+  // boundary geometry comes from vector tiles, but labelling polygons straight
+  // from tiles repeats the name once per tile a state spans, so we drive labels
+  // from these fixed points instead (one label each, no duplicates).
+  const AU_STATE_LABELS = {
+    type: "FeatureCollection",
+    features: [
+      ["New South Wales", 146.9, -32.2],
+      ["Victoria", 144.3, -36.9],
+      ["Queensland", 144.4, -22.6],
+      ["South Australia", 135.6, -30.3],
+      ["Western Australia", 121.7, -25.8],
+      ["Tasmania", 146.6, -42.0],
+      ["Northern Territory", 133.4, -19.6],
+      ["Australian Capital Territory", 149.0, -35.5],
+    ].map(([name, lng, lat]) => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [lng, lat] },
+      properties: { name },
+    })),
   }
 
   // Compute map bounds from mapdata (min/max lat, lng). Returns [[swLng, swLat], [neLng, neLat]] or null.
@@ -917,26 +909,29 @@
   const protocol = new Protocol()
   maplibregl.addProtocol("pmtiles", protocol.tile)
 
-  // Add Australian state boundaries (black outline, no fill), state-name labels
-  // and capital-city dots with names. Added once; visibility is driven by
-  // SHOW_STATE_BOUNDARIES.
+  // Add Australian state boundaries from our hosted vector tiles (black outline,
+  // no fill), state-name labels driven by the same tiles, and capital-city dots
+  // with names. Added once; visibility is driven by SHOW_STATE_BOUNDARIES.
   function addStateBoundaries() {
     if (!mapInstance || mapInstance.getSource(STATE_BOUNDARY_SOURCE)) return
 
-    const statesGeo = feature(ausStates, ausStates.objects.states)
     const initialVisibility = SHOW_STATE_BOUNDARIES ? "visible" : "none"
 
+    // State/territory boundaries as vector tiles. The tileset is built to zoom
+    // 7; MapLibre overzooms it up to the map's max zoom.
     mapInstance.addSource(STATE_BOUNDARY_SOURCE, {
-      type: "geojson",
-      data: statesGeo,
-    })
-    mapInstance.addSource(STATE_LABEL_SOURCE, {
-      type: "geojson",
-      data: buildStateLabelPoints(statesGeo),
+      type: "vector",
+      tiles: [STATE_TILES_URL],
+      minzoom: 0,
+      maxzoom: 7,
     })
     mapInstance.addSource(STATE_CAPITAL_SOURCE, {
       type: "geojson",
       data: AU_STATE_CAPITALS,
+    })
+    mapInstance.addSource(STATE_LABEL_SOURCE, {
+      type: "geojson",
+      data: AU_STATE_LABELS,
     })
 
     // Black state outlines, no fill.
@@ -944,6 +939,7 @@
       id: STATE_BOUNDARY_LAYER,
       type: "line",
       source: STATE_BOUNDARY_SOURCE,
+      "source-layer": STATE_SOURCE_LAYER,
       layout: { visibility: initialVisibility },
       paint: {
         "line-color": "#000000",
@@ -992,9 +988,9 @@
       },
     })
 
-    // State name labels (e.g. New South Wales) — one point per state. TS3 text
-    // sans regular, 13px, white halo for legibility. No minzoom so they stay
-    // visible when the map is zoomed well out.
+    // State name labels (e.g. New South Wales) — one fixed point per state, so a
+    // name is never repeated across the tiles its polygon spans. TS3 text sans
+    // regular, 13px, white halo for legibility.
     mapInstance.addLayer({
       id: STATE_LABEL_LAYER,
       type: "symbol",
