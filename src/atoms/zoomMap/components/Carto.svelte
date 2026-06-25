@@ -73,9 +73,6 @@
   const STATE_CAPITAL_DOT_LAYER = "au-state-capital-dots"
   const STATE_CAPITAL_LABEL_LAYER = "au-state-capital-labels"
 
-  // Hosted vector tiles for the state/territory boundaries (built + uploaded
-  // with the tileshop pipeline from the ABS ASGS 2021 shapefile). The tileset
-  // contains a single layer, "states", at zoom 0–7.
   const STATE_TILES_URL =
     "https://interactive.guim.co.uk/embed/upload/tileshop/australian-states/{z}/{x}/{y}.pbf"
   const STATE_SOURCE_LAYER = "states"
@@ -90,7 +87,6 @@
     "capital-labels-highzoom",
   ]
 
-  // The boundaries file has no capital cities, so supply them here.
   const AU_STATE_CAPITALS = {
     type: "FeatureCollection",
     features: [
