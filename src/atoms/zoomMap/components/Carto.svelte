@@ -1,31 +1,28 @@
 <script>
-  // TO FIX:
-  // Map seems to crop from the left-hand side on mobile
-  // Maybe drop shadow on minimap?
-  // Go through charts CSS and update to use Guardian Source variables
-  // Add a loading state to the map
-
   // Core imports
-  import { onMount, tick } from "svelte"
+  import { onMount } from "svelte"
   import { createEventDispatcher } from "svelte"
-  import { getJson } from "$lib/helpers/guardian/toolbelt.js"
-  // Guardian approved colour palettes
-  import {
-    categoricalLight,
-    categoricalDark,
-  } from "$lib/helpers/guardian/colours"
   import maplibregl from "maplibre-gl"
   import "maplibre-gl/dist/maplibre-gl.css"
-  const { Map, ScaleControl } = maplibregl
-  import { geoMercator, geoPath } from "d3-geo"
+  const { Map, ScaleControl, NavigationControl } = maplibregl
+  import { Protocol } from "pmtiles"
+  import { geoOrthographic, geoPath } from "d3-geo"
   import { select } from "d3-selection"
+  import { feature } from "topojson-client"
+  import Resizer from "$lib/components/guardian/Resizer.svelte"
 
-  import basemap from "$lib/mapstyles/basemap-styles.json"
-  import aus from "$lib/mapstyles/aus-simple.json" 
-  // Add darkmode detection here at some point
+  // Base map styles (shared with src/atoms/map)
+  import basemapLight from "$lib/mapstyles/ml_basemapLight.json"
+  import basemapLabels from "$lib/mapstyles/ml_mapLabels.json"
+  import world from "$lib/mapstyles/ne_110m_land.json"
+
+  // Shared minimap + scale helpers
+  import {
+    updateScaleControlPosition,
+    updateMinimap,
+  } from "$lib/helpers/mapping/mappingUtils.js"
 
   let width = $state(620)
-  let height = 500
   let debug = true
 
   // Component props
@@ -53,7 +50,6 @@
   let minimapPath
   let viewportRect
   let minimapProjection
-  let timestamp = $state(null)
   let isLoading = $state(true)
   let mapReady = $state(false)
   const dispatch = createEventDispatcher()
@@ -438,64 +434,6 @@
           },
           properties: toSerializableProperties(row),
         })),
-    }
-  }
-
-  // Function to update minimap viewport rectangle
-  function updateMinimap() {
-    if (!mapInstance || !minimapPath || !viewportRect) return
-
-    try {
-      // Get current map bounds from the main MapLibre map
-      const bounds = mapInstance.getBounds()
-      const sw = bounds.getSouthWest() // returns {lng, lat}
-      const ne = bounds.getNorthEast() // returns {lng, lat}
-
-      // Validate bounds are reasonable (within Australia's approximate bounds)
-      if (sw.lng < 100 || ne.lng > 160 || sw.lat < -50 || ne.lat > 0) {
-        viewportRect.attr("d", null) // Hide if bounds are invalid
-        return
-      }
-
-      // Create GeoJSON polygon for viewport bounds
-      // D3 expects clockwise exterior rings (area to the right of boundary)
-      // Order: SW -> NW -> NE -> SE -> SW (clockwise)
-      const viewportGeo = {
-        type: "Feature",
-        geometry: {
-          type: "Polygon",
-          coordinates: [
-            [
-              [sw.lng, sw.lat], // SW
-              [sw.lng, ne.lat], // NW
-              [ne.lng, ne.lat], // NE
-              [ne.lng, sw.lat], // SE
-              [sw.lng, sw.lat], // close back to SW
-            ],
-          ],
-        },
-      }
-
-      // Use minimapPath to generate the path
-      const pathData = minimapPath(viewportGeo)
-      if (pathData) {
-        // Calculate viewport size to adjust stroke width for small rectangles
-        const lonRange = ne.lng - sw.lng
-        const latRange = ne.lat - sw.lat
-        const area = lonRange * latRange
-
-        // Increase stroke width when viewport is small (threshold is arbitrary, adjust as needed)
-        const strokeWidth = area < 0.5 ? 4 : area < 2 ? 3 : 2
-
-        viewportRect
-          .attr("d", pathData)
-          .attr("stroke-width", strokeWidth)
-          .style("display", "block")
-      } else {
-        viewportRect.style("display", "none")
-      }
-    } catch (e) {
-      // Silently handle errors
     }
   }
 
@@ -888,47 +826,37 @@
     if (debug) console.log(`[Map] sheet-points: ${featureCount} features`)
   }
 
+  // Register the pmtiles protocol used by the shared base map styles
+  const protocol = new Protocol()
+  maplibregl.addProtocol("pmtiles", protocol.tile)
+
   onMount(async () => {
-    let overlaysSource = null
     const emptyGeoJSON = { type: "FeatureCollection", features: [] }
 
-    let combinedLayers = [...basemap]
-
-    let mapDefs = {
-      version: 8,
-      sources: (() => {
-        const sources = {
-          "vector-tiles": {
-            type: "vector",
-            tiles: [
-              "https://interactive.guim.co.uk/maptiles/world/{z}/{x}/{y}.pbf",
-            ],
-          },
-          "sheet-points": {
-            type: "geojson",
-            data: emptyGeoJSON,
-            cluster: true,
-            clusterRadius: clusterRadius,
-            clusterMaxZoom: clusterMaxZoom,
-          },
-        }
-        if (overlaysSource) {
-          sources["overlays"] = overlaysSource
-        }
-        return sources
-      })(),
-      sprite: "",
-      glyphs:
-        "https://interactive.guim.co.uk/maptiles/fonts/{fontstack}/{range}.pbf",
-      layers: combinedLayers,
+    // Build the base map style by merging the shared light basemap with its
+    // label layers, then adding this component's clustered points source.
+    const mapStyle = {
+      ...basemapLight,
+      sources: {
+        ...basemapLight.sources,
+        "sheet-points": {
+          type: "geojson",
+          data: emptyGeoJSON,
+          cluster: true,
+          clusterRadius: clusterRadius,
+          clusterMaxZoom: clusterMaxZoom,
+        },
+      },
+      layers: [...basemapLight.layers, ...basemapLabels.layers],
     }
 
     mapInstance = new Map({
       container: "cartoMap",
-      style: mapDefs,
+      style: mapStyle,
       center: center,
       zoom: zoom,
       maxZoom: maxZoom,
+      attributionControl: false,
     })
 
     // Disable interactions if MAP_INTERACTIVE is false
@@ -941,7 +869,10 @@
     }
 
     if (SHOW_NAVIGATION_CONTROL) {
-      mapInstance.addControl(new maplibregl.NavigationControl(), "top-right")
+      mapInstance.addControl(
+        new NavigationControl({ showCompass: false }),
+        "top-right",
+      )
     }
     if (SHOW_FULLSCREEN_CONTROL) {
       mapInstance.addControl(new maplibregl.FullscreenControl(), "top-right")
@@ -955,24 +886,25 @@
       )
     }
 
-    mapInstance.addControl(
-      new ScaleControl({
-        unit: "metric",
-      }),
-      "bottom-right",
-    )
+    // Dual imperial/metric scale, bottom-right (matches src/atoms/map)
+    mapInstance.addControl(new ScaleControl({ unit: "imperial" }), "bottom-right")
+    mapInstance.addControl(new ScaleControl({ unit: "metric" }), "bottom-right")
 
-    // Set up minimap
+    // Set up minimap (globe-style orthographic projection, matches src/atoms/map)
+    const worldGeo = feature(world, world.objects.ne_110m_land)
+
     const minimapWidth = 150
     const minimapHeight = 100
 
-    minimapProjection = geoMercator().fitExtent(
-      [
-        [0, 0],
-        [minimapWidth, minimapHeight],
-      ],
-      aus,
-    )
+    minimapProjection = geoOrthographic()
+      .rotate([-center[0], -center[1]])
+      .fitExtent(
+        [
+          [0, 0],
+          [minimapWidth, minimapHeight],
+        ],
+        worldGeo,
+      )
 
     minimapPath = geoPath().projection(minimapProjection)
 
@@ -982,51 +914,84 @@
       .attr("width", minimapWidth)
       .attr("height", minimapHeight)
 
-    minimapSvg
+    // Circular clip path and outline
+    const radius = Math.min(minimapWidth, minimapHeight) / 2
+    const cx = minimapWidth / 2
+    const cy = minimapHeight / 2
+
+    const defs = minimapSvg.append("defs")
+    defs
+      .append("clipPath")
+      .attr("id", "minimap-clip")
+      .append("circle")
+      .attr("cx", cx)
+      .attr("cy", cy)
+      .attr("r", radius)
+
+    // Group for globe content, clipped to circle
+    const minimapGroup = minimapSvg
       .append("g")
+      .attr("clip-path", "url(#minimap-clip)")
+
+    // White circular background so non-land areas inside the globe are white
+    minimapGroup
+      .append("circle")
+      .attr("cx", cx)
+      .attr("cy", cy)
+      .attr("r", radius)
+      .attr("fill", "#FFFFFF")
+      .attr("stroke", "none")
+
+    minimapSvg
+      .append("circle")
+      .attr("cx", cx)
+      .attr("cy", cy)
+      .attr("r", radius)
+      .attr("fill", "none")
+      .attr("stroke", "#000")
+      .attr("stroke-width", 1)
+
+    minimapGroup
       .selectAll("path")
-      .data(aus.features)
+      .data(worldGeo.features)
       .enter()
       .append("path")
       .attr("d", minimapPath)
-      .attr("fill", "#FFF")
-      .attr("stroke", "#000")
-      .attr("stroke-width", 1)
+      .attr("fill", "#F3F3F3")
+      .attr("stroke", "#121212")
+      .attr("stroke-width", 0.5)
       .attr("fill-rule", "evenodd")
 
-    // Add viewport rectangle (on top of Australia)
-    viewportRect = minimapSvg
+    // Add viewport rectangle (on top of the globe, inside the clip)
+    viewportRect = minimapGroup
       .append("path")
-      .attr("fill", "rgba(255, 0, 0, 0.6)")
-      .attr("stroke", "#c70000")
-      .attr("stroke-width", 2)
-
-    // Function to log map center and zoom
-    function logMapState() {
-      const center = mapInstance.getCenter()
-      const zoom = mapInstance.getZoom()
-      if (debug) {
-       // console.log(`${center.lng}, ${center.lat}, 'Zoom:', ${zoom}`)
-      }
-      //console.log(`${center.lng}, ${center.lat}, 'Zoom:', ${zoom}`)
-    }
+      .attr("fill", "none")
+      .attr("stroke", "#CC0A11")
+      .attr("stroke-width", 1)
 
     // Function to set up map after it loads
     function setupMapAfterLoad() {
       mapReady = true
-      updateMinimap() // Initial update
+      updateMinimap(mapInstance, minimapPath, viewportRect) // Initial update
+      updateScaleControlPosition()
       // Listen to map movement and zoom events
       mapInstance.on("move", () => {
-        updateMinimap()
-        logMapState()
+        updateMinimap(mapInstance, minimapPath, viewportRect)
+        updateScaleControlPosition()
       })
-      mapInstance.on("moveend", updateMinimap)
+      mapInstance.on("moveend", () =>
+        updateMinimap(mapInstance, minimapPath, viewportRect),
+      )
       mapInstance.on("zoom", () => {
-        updateMinimap()
-        logMapState()
+        updateMinimap(mapInstance, minimapPath, viewportRect)
+        updateScaleControlPosition()
       })
-      mapInstance.on("zoomend", updateMinimap)
-      mapInstance.on("resize", updateMinimap)
+      mapInstance.on("zoomend", () =>
+        updateMinimap(mapInstance, minimapPath, viewportRect),
+      )
+      mapInstance.on("resize", () =>
+        updateMinimap(mapInstance, minimapPath, viewportRect),
+      )
       isLoading = false
     }
 
@@ -1041,12 +1006,6 @@
       mapInstance.setCenter(center)
       mapInstance.resize()
     })
-
-    // mapInstance.on('resize', () => {
-    //   console.log('resize');
-    //   mapInstance.setCenter(center);
-    //   // mapInstance.resize();
-    // });
   })
 
   $effect(() => {
@@ -1054,6 +1013,8 @@
     renderMap()
   })
 </script>
+
+<Resizer atomName="#gv-atom" />
 
 <div class="atom" bind:clientWidth={width}>
   <div id="graphicContainer">
@@ -1073,7 +1034,7 @@
           <span class="loading-text">Loading map…</span>
         </div>
       {/if}
-      <div id="minimap"></div>
+      <div id="minimap" class="minimap"></div>
     </div>
 
     <div class="src-text-sans-12">
@@ -1092,6 +1053,7 @@
   .atom {
     width: 100%;
     position: relative;
+    padding-bottom: 20px;
 
     #cartoMap {
       width: 100%;
@@ -1122,26 +1084,6 @@
           color: #333;
         }
       }
-    }
-
-    :global(.maplibregl-ctrl-scale) {
-      background: none;
-      border-bottom: 2px solid #333;
-      border-left: none;
-      border-right: none;
-      border-top: #333;
-      box-sizing: border-box;
-      color: #333;
-      font-size: 10px;
-      padding: 0 5px;
-      white-space: nowrap;
-    }
-
-    #minimap {
-      position: absolute;
-      bottom: 0px;
-      left: -15px;
-      z-index: 1000;
     }
   }
 

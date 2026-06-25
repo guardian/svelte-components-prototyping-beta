@@ -38,7 +38,6 @@
 
   let { name, geoJsonURL = "", geoJsonStyles = defaultGeoJsonStyles } = $props()
 
-  $inspect(state.mapdata)
 </script>
 
 <Resizer atomName="#{name}" />
@@ -51,7 +50,7 @@
     MAP_INTERACTIVE={true}
     headline="Making a map to display data from a Google Sheet"
     subtitle={`Showing some cool stuff`}
-    source="Guardian graphic. Source: <a href='https://www.emergency.wa.gov.au/' target='_blank'>EmergencyWA website</a>, OpenStreetMap"
+    source="<a href='https://www.emergency.wa.gov.au/' target='_blank'>EmergencyWA website</a>, OpenStreetMap"
   />
 {/if}
 
