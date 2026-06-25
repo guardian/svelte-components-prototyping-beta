@@ -48,6 +48,7 @@
     popupTemplate={"<strong>{Place}</strong><br/>{Smell}<br/>{Source}"}
     {geoJsonStyles}
     MAP_INTERACTIVE={true}
+    SHOW_STATE_BOUNDARIES={true}
     headline="Making a map to display data from a Google Sheet"
     subtitle={`Showing some cool stuff`}
     source="<a href='https://www.emergency.wa.gov.au/' target='_blank'>EmergencyWA website</a>, OpenStreetMap"

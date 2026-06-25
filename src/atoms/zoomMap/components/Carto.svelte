@@ -6,7 +6,7 @@
   import "maplibre-gl/dist/maplibre-gl.css"
   const { Map, ScaleControl, NavigationControl } = maplibregl
   import { Protocol } from "pmtiles"
-  import { geoOrthographic, geoPath } from "d3-geo"
+  import { geoOrthographic, geoPath, geoCentroid } from "d3-geo"
   import { select } from "d3-selection"
   import { feature } from "topojson-client"
   import Resizer from "$lib/components/guardian/Resizer.svelte"
@@ -15,6 +15,8 @@
   import basemapLight from "$lib/mapstyles/ml_basemapLight.json"
   import basemapLabels from "$lib/mapstyles/ml_mapLabels.json"
   import world from "$lib/mapstyles/ne_110m_land.json"
+  // Australian state boundaries (TopoJSON), shown when SHOW_STATE_BOUNDARIES is on
+  import ausStates from "$lib/mapstyles/aus-states.json"
 
   // Shared minimap + scale helpers
   import {
@@ -34,6 +36,9 @@
     SHOW_NAVIGATION_CONTROL = true,
     SHOW_FULLSCREEN_CONTROL = false,
     SHOW_GEOLOCATE_CONTROL = false,
+    // Australian state boundaries + capital labels. Off by default — only
+    // maps showing Australia-specific data need them.
+    SHOW_STATE_BOUNDARIES = false,
     center = [116.03196265904751, -31.90047341428921],
     clusterRadius = 40, // pixels; tweak
     clusterMaxZoom = 11, // last zoom where clustering occurs
@@ -60,6 +65,82 @@
   const COORD_EPSILON = 1e-5
   const SPIDERFY_PIXEL_TOLERANCE = 100
   const SPIDERFY_CLUSTER_RADIUS_PX = 100
+
+  // Australian state boundary + label layer ids
+  const STATE_BOUNDARY_SOURCE = "au-states"
+  const STATE_BOUNDARY_LAYER = "au-state-boundaries"
+  const STATE_LABEL_SOURCE = "au-state-label-points"
+  const STATE_LABEL_LAYER = "au-state-labels"
+  const STATE_CAPITAL_SOURCE = "au-state-capitals"
+  const STATE_CAPITAL_DOT_LAYER = "au-state-capital-dots"
+  const STATE_CAPITAL_LABEL_LAYER = "au-state-capital-labels"
+
+  // Base map place-label layers that could also label our capital cities.
+  // While our capitals are shown, these are filtered to exclude the capital
+  // names so a capital city is never labelled twice.
+  const BASEMAP_PLACE_LABEL_LAYERS = [
+    "town-labels",
+    "city-labels",
+    "capital-labels-lowzoom",
+    "capital-labels-highzoom",
+  ]
+
+  // The boundaries file has no capital cities, so supply them here.
+  const AU_STATE_CAPITALS = {
+    type: "FeatureCollection",
+    features: [
+      ["Sydney", 151.2093, -33.8688],
+      ["Melbourne", 144.9631, -37.8136],
+      ["Brisbane", 153.0251, -27.4698],
+      ["Perth", 115.8605, -31.9505],
+      ["Adelaide", 138.6007, -34.9285],
+      ["Hobart", 147.3272, -42.8821],
+      ["Darwin", 130.8456, -12.4634],
+      ["Canberra", 149.13, -35.2809],
+    ].map(([name, lng, lat]) => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [lng, lat] },
+      properties: { name },
+    })),
+  }
+
+  // Names our own capital layer renders, used to suppress base map duplicates.
+  const CAPITAL_NAMES = AU_STATE_CAPITALS.features.map((f) => f.properties.name)
+
+  // Planar (shoelace) area of a polygon ring; used to pick a state's main landmass.
+  function ringArea(ring) {
+    let area = 0
+    for (let i = 0, n = ring.length, j = n - 1; i < n; j = i++) {
+      area += ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1]
+    }
+    return area / 2
+  }
+
+  // One label point per state, placed at the centroid of its largest polygon
+  // (so MultiPolygon states like WA/QLD get a single label on the mainland).
+  function buildStateLabelPoints(statesGeo) {
+    const features = statesGeo.features.map((f) => {
+      const geom = f.geometry
+      let largest = geom.coordinates
+      if (geom.type === "MultiPolygon") {
+        let maxArea = -Infinity
+        for (const poly of geom.coordinates) {
+          const area = Math.abs(ringArea(poly[0]))
+          if (area > maxArea) {
+            maxArea = area
+            largest = poly
+          }
+        }
+      }
+      const centroid = geoCentroid({ type: "Polygon", coordinates: largest })
+      return {
+        type: "Feature",
+        geometry: { type: "Point", coordinates: centroid },
+        properties: { name: f.properties.name },
+      }
+    })
+    return { type: "FeatureCollection", features }
+  }
 
   // Compute map bounds from mapdata (min/max lat, lng). Returns [[swLng, swLat], [neLng, neLat]] or null.
   function getBoundsFromMapdata(rows) {
@@ -823,12 +904,153 @@
       mapInstance.on("resize", clearSpider)
     }
 
+    // Keep the state name + capital labels above the cluster/point layers that
+    // were just added, so labels are never hidden behind cluster icons.
+    for (const id of [STATE_LABEL_LAYER, STATE_CAPITAL_LABEL_LAYER]) {
+      if (mapInstance.getLayer(id)) mapInstance.moveLayer(id)
+    }
+
     if (debug) console.log(`[Map] sheet-points: ${featureCount} features`)
   }
 
   // Register the pmtiles protocol used by the shared base map styles
   const protocol = new Protocol()
   maplibregl.addProtocol("pmtiles", protocol.tile)
+
+  // Add Australian state boundaries (black outline, no fill), state-name labels
+  // and capital-city dots with names. Added once; visibility is driven by
+  // SHOW_STATE_BOUNDARIES.
+  function addStateBoundaries() {
+    if (!mapInstance || mapInstance.getSource(STATE_BOUNDARY_SOURCE)) return
+
+    const statesGeo = feature(ausStates, ausStates.objects.states)
+    const initialVisibility = SHOW_STATE_BOUNDARIES ? "visible" : "none"
+
+    mapInstance.addSource(STATE_BOUNDARY_SOURCE, {
+      type: "geojson",
+      data: statesGeo,
+    })
+    mapInstance.addSource(STATE_LABEL_SOURCE, {
+      type: "geojson",
+      data: buildStateLabelPoints(statesGeo),
+    })
+    mapInstance.addSource(STATE_CAPITAL_SOURCE, {
+      type: "geojson",
+      data: AU_STATE_CAPITALS,
+    })
+
+    // Black state outlines, no fill.
+    mapInstance.addLayer({
+      id: STATE_BOUNDARY_LAYER,
+      type: "line",
+      source: STATE_BOUNDARY_SOURCE,
+      layout: { visibility: initialVisibility },
+      paint: {
+        "line-color": "#000000",
+        "line-width": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          3, 0.6,
+          6, 0.9,
+          10, 1.2,
+        ],
+      },
+    })
+
+    // 5px black circle for each capital city.
+    mapInstance.addLayer({
+      id: STATE_CAPITAL_DOT_LAYER,
+      type: "circle",
+      source: STATE_CAPITAL_SOURCE,
+      layout: { visibility: initialVisibility },
+      paint: {
+        "circle-radius": 5,
+        "circle-color": "#000000",
+      },
+    })
+
+    // Capital-city names, set to the right of each dot. TS3 text sans regular,
+    // 13px, white halo for legibility.
+    mapInstance.addLayer({
+      id: STATE_CAPITAL_LABEL_LAYER,
+      type: "symbol",
+      source: STATE_CAPITAL_SOURCE,
+      layout: {
+        visibility: initialVisibility,
+        "text-field": ["get", "name"],
+        "text-font": ["Gdn Text Sans TS3Regular"],
+        "text-size": 13,
+        "text-anchor": "left",
+        "text-offset": [0.8, 0],
+        "text-allow-overlap": true,
+      },
+      paint: {
+        "text-color": "#121212",
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 1.2,
+      },
+    })
+
+    // State name labels (e.g. New South Wales) — one point per state. TS3 text
+    // sans regular, 13px, white halo for legibility. No minzoom so they stay
+    // visible when the map is zoomed well out.
+    mapInstance.addLayer({
+      id: STATE_LABEL_LAYER,
+      type: "symbol",
+      source: STATE_LABEL_SOURCE,
+      layout: {
+        visibility: initialVisibility,
+        "text-field": ["get", "name"],
+        "text-font": ["Gdn Text Sans TS3Regular"],
+        "text-size": 13,
+        "text-anchor": "center",
+        "text-max-width": 8,
+      },
+      paint: {
+        "text-color": "#121212",
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 1.2,
+      },
+    })
+  }
+
+  function setStateBoundariesVisibility(visible) {
+    if (!mapInstance) return
+    const visibility = visible ? "visible" : "none"
+    for (const id of [
+      STATE_BOUNDARY_LAYER,
+      STATE_CAPITAL_DOT_LAYER,
+      STATE_CAPITAL_LABEL_LAYER,
+      STATE_LABEL_LAYER,
+    ]) {
+      if (mapInstance.getLayer(id)) {
+        mapInstance.setLayoutProperty(id, "visibility", visibility)
+      }
+    }
+
+    // The base map labels capital cities too (e.g. via city-labels). While our
+    // capitals are shown, filter those names out of the base map place-label
+    // layers so a capital city is never labelled twice — restore on toggle off.
+    const exclusion = [
+      "!",
+      [
+        "in",
+        ["coalesce", ["get", "name:en"], ["get", "name"], ""],
+        ["literal", CAPITAL_NAMES],
+      ],
+    ]
+    for (const id of BASEMAP_PLACE_LABEL_LAYERS) {
+      if (!mapInstance.getLayer(id)) continue
+      const original =
+        basemapLabels.layers.find((l) => l.id === id)?.filter ?? null
+      if (visible) {
+        mapInstance.setFilter(id, original ? ["all", original, exclusion] : exclusion)
+      } else {
+        mapInstance.setFilter(id, original)
+      }
+    }
+  }
 
   onMount(async () => {
     const emptyGeoJSON = { type: "FeatureCollection", features: [] }
@@ -992,6 +1214,7 @@
       mapInstance.on("resize", () =>
         updateMinimap(mapInstance, minimapPath, viewportRect),
       )
+      addStateBoundaries()
       isLoading = false
     }
 
@@ -1011,6 +1234,12 @@
   $effect(() => {
     if (!mapReady || !mapInstance) return
     renderMap()
+  })
+
+  // Toggle Australian state boundaries + capitals when the setting changes.
+  $effect(() => {
+    if (!mapReady || !mapInstance) return
+    setStateBoundariesVisibility(SHOW_STATE_BOUNDARIES)
   })
 </script>
 
