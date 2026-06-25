@@ -1038,8 +1038,8 @@
     </div>
 
     <div class="src-text-sans-12">
-      Guardian graphic. Source: {@html source}
-    </div>
+      Guardian graphic. {#if source} Source: {@html source} {/if}
+    </div> -->
   </div>
 </div>
 

@@ -81,7 +81,7 @@ export default defineConfig(({ mode }) => {
     build: {
       copyPublicDir: false,
       sourcemap: true,
-      target: "es2015",
+      target: "es2020",
       emptyOutDir: true,
       cssCodeSplit: false,
       rollupOptions: {
