@@ -126,6 +126,37 @@
             }
         },
         {
+            "id": "region",
+            "source": "pmvt",
+            "source-layer": "boundaries",
+            "type": "line",
+            "filter": [
+                "all",
+                [
+                    "==",
+                    "$type",
+                    "LineString"
+                ],
+                [
+                    "==",
+                    "kind",
+                    "region"
+                ]
+            ],
+            "paint": {
+            "line-color": "#dcdcdc",
+            "line-width": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                4, 0.4,
+                8, 0.6,
+                12, 0.8,
+                16, 1.2
+                ]
+            }
+        },
+        {
             "id": "water",
             "type": "fill",
             "source": "pmvt",
@@ -220,7 +251,6 @@
           "kind",
           "park",
           "national_park",
-          "nature_reserve",
           "garden",
           "golf_course",
           "dog_park",
@@ -230,6 +260,24 @@
       ],
       "layout": {
         "visibility": "visible"
+      },
+      "paint": {
+        "fill-color": "rgba(220, 242, 221, 1)"
+      }
+    },
+    {
+      "id": "nature_reserve",
+      "type": "fill",
+      "source": "pmvt",
+      "source-layer": "landuse",
+      "minzoom": 8,
+      "filter": [
+        "all",
+        ["==", "$type", "Polygon"],
+        ["==", "kind", "nature_reserve"]
+      ],
+      "layout": {
+        "visibility": "none"
       },
       "paint": {
         "fill-color": "rgba(220, 242, 221, 1)"
@@ -336,6 +384,72 @@
                     15,
                     0.9
                 ]
+            }
+        },
+        {
+            "id": "capital-dots",
+            "type": "circle",
+            "source": "pmvt",
+            "source-layer": "places",
+            "filter": [
+                "all",
+                [
+                    "==",
+                    "$type",
+                    "Point"
+                ],
+                [
+                    "in",
+                    "capital",
+                    "yes",
+                    4
+                ]
+            ],
+            "layout": {
+                "visibility": "visible"
+            },
+            "paint": {
+                "circle-radius": 5,
+                "circle-color": "#000000"
+            }
+        },
+        {
+            "id": "capital-labels",
+            "type": "symbol",
+            "source": "pmvt",
+            "source-layer": "places",
+            "filter": [
+                "all",
+                [
+                    "==",
+                    "$type",
+                    "Point"
+                ],
+                [
+                    "in",
+                    "capital",
+                    "yes",
+                    4
+                ]
+            ],
+            "layout": {
+                "visibility": "visible",
+                "text-field": [
+                    "coalesce",
+                    ["get", "name:en"],
+                    ["get", "name"],
+                    ""
+                ],
+                "text-font": ["Gdn Text Sans TS3Regular"],
+                "text-size": 13,
+                "text-anchor": "left",
+                "text-offset": [0.8, 0],
+                "text-allow-overlap": true
+            },
+            "paint": {
+                "text-color": "#121212",
+                "text-halo-color": "#ffffff",
+                "text-halo-width": 1.2
             }
         }
        

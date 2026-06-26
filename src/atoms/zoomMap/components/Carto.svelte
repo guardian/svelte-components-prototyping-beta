@@ -913,14 +913,16 @@
 
     const initialVisibility = SHOW_STATE_BOUNDARIES ? "visible" : "none"
 
-    // State/territory boundaries as vector tiles. The tileset is built to zoom
-    // 7; MapLibre overzooms it up to the map's max zoom.
+   // This was an experiment in loading in a seperate vector tile layer for the state boundary
+   // It turns out that the basemapLight.json file already has the state boundaries in it.
+   /*
     mapInstance.addSource(STATE_BOUNDARY_SOURCE, {
       type: "vector",
       tiles: [STATE_TILES_URL],
       minzoom: 0,
       maxzoom: 7,
     })
+      */
     mapInstance.addSource(STATE_CAPITAL_SOURCE, {
       type: "geojson",
       data: AU_STATE_CAPITALS,
@@ -931,6 +933,7 @@
     })
 
     // Black state outlines, no fill.
+    /*
     mapInstance.addLayer({
       id: STATE_BOUNDARY_LAYER,
       type: "line",
@@ -949,6 +952,8 @@
         ],
       },
     })
+      */
+    
 
     // 5px black circle for each capital city.
     mapInstance.addLayer({
@@ -991,6 +996,8 @@
       id: STATE_LABEL_LAYER,
       type: "symbol",
       source: STATE_LABEL_SOURCE,
+      minzoom: 2,
+      maxzoom: 6,
       layout: {
         visibility: initialVisibility,
         "text-field": ["get", "name"],

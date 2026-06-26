@@ -13,7 +13,11 @@
                     ["==", ["get", "kind"], "locality"],
                     ["==", ["get", "kind"], "town"]
                 ],
-                ["!=", ["get", "capital"], "yes"]
+                [
+                    "all",
+                    ["!=", ["get", "capital"], "yes"],
+                    ["!=", ["get", "capital"], 4]
+                ]
             ],
             "layout": {
                 "visibility": "visible",
@@ -54,7 +58,11 @@
                     "any",
                     ["==", ["get", "kind_detail"], "city"]
                 ],
-                ["!=", ["get", "capital"], "yes"]
+                [
+                    "all",
+                    ["!=", ["get", "capital"], "yes"],
+                    ["!=", ["get", "capital"], 4]
+                ]
             ],
             "layout": {
                 "visibility": "visible",
@@ -120,7 +128,11 @@
             "type": "symbol",
             "minzoom": 5,
             "maxzoom": 10,
-            "filter": ["==", ["get", "capital"], "yes"],
+            "filter": [
+                "any",
+                ["==", ["get", "capital"], "yes"],
+                ["==", ["get", "capital"], 4]
+            ],
             "layout": {
               "icon-image": "other-country-capital-small",
                 "icon-anchor": "center",
@@ -153,7 +165,8 @@
             "minzoom": 10,
             "filter": [
                 "any",
-                ["==", ["get", "capital"], "yes"]
+                ["==", ["get", "capital"], "yes"],
+                ["==", ["get", "capital"], 4]
             ],
             "layout": {
                 "visibility": "visible",
