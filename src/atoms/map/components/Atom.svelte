@@ -1,24 +1,17 @@
 <script>
   import Carto from "./Carto.svelte"
   // import Resizer from "$lib/components/guardian/Resizer.svelte"
-  import { categoricalLight, categoricalDark } from '$lib/helpers/guardian/colours';
+  import { categoricalLight } from '$lib/helpers/guardian/colours';
   
-  let { name } = $props()
   let width = $state(620);
-  let height = $state(500);
 
   let mapSettings = $state({
       interactive: true,
-      zoom: 10.662479015301319,
-      viewBounds: [[32.95923516781116, 31.088211024074994], [38.09685872086678, 34.568786230741196]],
-      center: [-3.7928114885858975, 53.30419012576044],
-      showCounties: false,
-      showCityLabels: true,
-      showCapitalLabels: true,
-      showTownAndLocalityLabels: true,
-      showCountryLabels: true,
-      showMiniMap: true,
-      highlightCountry: "Lebanon"
+      style: /** @type {'graphics'} */ ('graphics'),
+      viewport: {
+        bounds: /** @type {[[number, number], [number, number]]} */ ([[112, -44.5], [154.5, -10]])
+      },
+      showMiniMap: true
     })
   
 </script>
@@ -42,9 +35,9 @@
 
     </div>
 
-    <Carto {width} {height} {mapSettings} />  
+    <Carto {width} {mapSettings} />  
 
-    <div class="vis-chart-source">Guardian graphic. Source: <a href="https://acleddata.com/" target="_blank">ACLED</a>, OpenStreetMap. Note: strikes are ongoing, not an exhaustive list of targets</div>	
+    <div class="vis-chart-source">Guardian graphic.</div>	
   
   </div>
 
