@@ -12,9 +12,9 @@
   let { name = '' } = $props();
 
   onMount(async() => {
-    const url = `https://interactive.guim.co.uk/docsdata/oz-2025-sa2-fertility-map.json`;
+    const url = `https://interactive.guim.co.uk/embed/iframes/2026/09/suburb-price-choro/atom-1/assets/prices.json`;
     const json = await getJson(url);
-    data = json?.sheets?.data ? json.sheets.data : [];
+    data = json ? json : [];
     console.log(data)
   })
 
@@ -30,22 +30,35 @@
 
     <Choropleth 
       {data}
-      boundary={'sa2-21'}
-      title={'Change in dwelling density by suburb'}
-      subtitle={'Link to <a target="_blank" href="https://docs.google.com/spreadsheets/d/1eFx2S_gpFbC1GzncQgcutPWXbj2cZEgl_dnVPKblGyc/edit?gid=807652696#gid=807652696">boundaries googledoc</a>'}
+      boundary={'suburbs-house-prices-2026'}
+      title={'Change in dwelling prices by suburb'}
+      subtitle={'Showing the change in dwelling value over three months, 12 months and five years'}
       footnote={''}
-      source={'Australian Bureau of Statistics'}
+      source={'Cotality'}
       displaySearch={true}
+      boundaryID={'SAL_NAME21'}
       mapping={[{
-        "data": "TFR",
-        "display": "Change in dwellings 2011-2021",
-        "values": "0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4",
-        "colours": "#ffffcc,#ffeda0,#fed976,#feb24c,#fd8d3c,#fc4e2a,#e31a1c,#bd0026,#800026",
-        "tooltip": "{{SA2_NAME21}}: <b>{{TFR}}</b>",
+        "data": "12_months",
+        "display": "Price change (12 months)", 
+        "values": "-20,-10,-5,0,5,10,20,40",
+        "colours":"#313695,#4575b4,#74add1,#abd9e9,#fee090,#fdae61,#f46d43,#d73027,#a50026",
+        "tooltip": "{{12_months}}",
         "overlay-tooltip": "",
         "scale": "threshold",
-        "keyText": "Birthrates"
-    }]}
+        "keyText": "Price change (%)"
+    },
+    {
+        "data": "3_months",
+        "display": "Price change (3 months)", 
+        "values": "-10,-5,-2.5,0,2.5,5,10",
+        "colours":"#4575b4,#74add1,#abd9e9,#e0f3f8,#fee090,#fdae61,#f46d43,#d73027",
+        "tooltip": "{{3_months}}",
+        "overlay-tooltip": "",
+        "scale": "threshold",
+        "keyText": "Price change (%)"
+    }
+    
+    ]}
     />
   {:else}
     <h1>Loading...</h1>

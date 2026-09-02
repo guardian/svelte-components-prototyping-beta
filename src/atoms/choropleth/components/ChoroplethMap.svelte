@@ -1,6 +1,6 @@
 <!-- src/lib/components/ChoroplethMap.svelte -->
 <script>
-  import { onMount } from 'svelte';
+  import { untrack } from 'svelte';
   import { database } from '$lib/stores/choro.svelte.js';
 
   import MapContainer from './MapContainer.svelte';
@@ -10,27 +10,31 @@
   import ZoomControls from './ZoomControls.svelte';
   import MapTooltip from './MapTooltip.svelte';
 
-  
-  export let data;
-  export let boundaries;
-  export let overlay;
-  export let basemap;
-  export let places;
-  export let key;
-  export let codes;
-  export let place;
-  export let debugForceRed = true;
 
-  let mapContainer;
+  let {
+    data = null,
+    boundaries = null,
+    overlay = null,
+    basemap = null,
+    places = null,
+    key = null,
+    codes = null,
+    place = null,
+    debugForceRed = true
+  } = $props();
+
+  let mapContainer = $state();
   let testing = false
 
-  onMount(() => {
-    Object.assign(database, data, { codes });
+  // Seed the store from the settings blob. Untracked so this only re-runs when
+  // a new `data`/`codes` arrives, not on every subsequent write to `database` —
+  // otherwise it would reset the user's dropdown selection back to the defaults.
+  $effect(() => {
+    const settings = data;
+    const postcodes = codes;
+    if (!settings) return;
+    untrack(() => Object.assign(database, settings, { codes: postcodes }));
   });
-
-  $: if (data) {
-    Object.assign(database, data, { codes });
-  }
 
 
 </script>

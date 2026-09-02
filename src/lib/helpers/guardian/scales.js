@@ -7,7 +7,8 @@ function getColourScale(scaleType, legendValues, legendColors) {
     let mean = d3.mean(legendValues);
 
     if (scaleType === "threshold" || scaleType === "scaleThreshold") {
-        return d3.scaleThreshold().domain(legendValues.slice(1, -1)).range(legendColors);
+        let breaks = legendValues.slice(0, legendColors.length - 1).map(Number);
+        return d3.scaleThreshold().domain(breaks).range(legendColors);
     }
     
     else if (scaleType === "ordinal" || scaleType === "scaleOrdinal") {

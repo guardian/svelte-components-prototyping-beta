@@ -3,7 +3,7 @@
   import { database } from '$lib/stores/choro.svelte.js';
   
   let { 
-    selectedIndex, 
+    selectedIndex = $bindable(0), 
     options = [], 
     label = '', 
     changeType = '', 
