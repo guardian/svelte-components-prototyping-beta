@@ -428,17 +428,17 @@
         {/if}
 
         {#if places.features.length > 0}
-          <g class="places">
-            {#each places.features as feature, i}
-              <text
-              x={projection([feature.geometry.coordinates[0], feature.geometry.coordinates[1]])[0]}
-              y={projection([feature.geometry.coordinates[0], feature.geometry.coordinates[1]])[1]}
-              class="labels"
-              style="font-size: {10 / zoomTransform.k}px;display: {feature.properties.scalerank - 1 < zoomTransform.k - 1 ? 'block' : 'none'}">
-                {feature.properties.name}
-              </text>
-            {/each}
-          </g>
+        <g class="places">
+          {#each places.features as feature, i}
+            <text
+            x={projection([feature.geometry.coordinates[0], feature.geometry.coordinates[1]])[0]}
+            y={projection([feature.geometry.coordinates[0], feature.geometry.coordinates[1]])[1]}
+            class="labels"
+            style="font-size: {10 / zoomTransform.k}px;stroke-width: {3 / zoomTransform.k}px;display: {feature.properties.scalerank - 1 < zoomTransform.k - 1 ? 'block' : 'none'}">
+              {feature.properties.name}
+            </text>
+          {/each}
+        </g>
         {/if}
 
       </g>
@@ -473,5 +473,9 @@
 
   .labels {
     font-family: 'Guardian Text Sans Web', sans-serif;
+    fill: #000;
+    stroke: #fff;
+    stroke-linejoin: round;
+    paint-order: stroke;
   }
 </style>
