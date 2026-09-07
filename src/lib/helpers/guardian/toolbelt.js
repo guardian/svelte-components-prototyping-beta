@@ -563,6 +563,15 @@ export function melt(data, idVars, varName = "variable", valueName = "value") {
 /**
  * Reads custom atom data from the iframe global or from the matching atom
  * container's `data-atom-custom-data` attribute.
+ * 
+ * How it works on the composer side:
+ * 
+ * Press Shift and F12 in Composer and turn on the custom data feature. 
+ * Refresh and interactive atoms should have a ‘Custom data’ field appear
+ * Drop in whatever JSON you want available to the atom 
+ * Said data will appear in a data attribute on the parent container in DCAR
+ * 
+ * 
  *
  * @param {string} id
  * @returns {unknown | null}
