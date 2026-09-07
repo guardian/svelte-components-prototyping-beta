@@ -24,7 +24,7 @@ function getColourScale(scaleType, legendValues, legendColors) {
     }
     
     else if (scaleType === "quantile" || scaleType === "scaleQuantile") {
-        return d3.scaleQuantile().domain([min, max]).range(legendColors);
+        return d3.scaleQuantile().domain(legendValues).range(legendColors);
     }
     
     else if (scaleType === "quantize" || scaleType === "scaleQuantize") {

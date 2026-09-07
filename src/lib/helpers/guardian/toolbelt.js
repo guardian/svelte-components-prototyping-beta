@@ -560,6 +560,66 @@ export function melt(data, idVars, varName = "variable", valueName = "value") {
   });
 }
 
+/**
+ * Reads custom atom data from the iframe global or from the matching atom
+ * container's `data-atom-custom-data` attribute.
+ *
+ * @param {string} id
+ * @returns {unknown | null}
+ */
+export const getAtomCustomData = (id) => {
+  // Inside an iframe — data injected as a global
+  if ('__atomCustomData' in window) {
+    return window.__atomCustomData;
+  }
+  // Outside an iframe — find the atom container by id and read the attribute
+  const container = document.querySelector(`[data-atom-id="${id}"]`);
+  if (!container) return null;
+  const raw = container.getAttribute('data-atom-custom-data');
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    console.warn(`Failed to parse data-atom-custom-data for atom "${id}"`);
+    return null;
+  }
+};
+
+/**
+ * Fetches a DocsData JSON payload and returns the rows for a specific sheet.
+ *
+ * @param {string} key
+ * @param {string} [sheet="Sheet1"]
+ * @returns {Promise<Array<Record<string, unknown>> | false>}
+ */
+export const fetchData = async (key, sheet="Sheet1") => {
+  try {
+    const response = await fetch(
+      `https://interactive.guim.co.uk/docsdata/${key}.json`,
+    );
+
+    if (!response.ok) {
+      console.error('Error fetching data: invalid response', response.status);
+      return false;
+    }
+
+    const data = await response.json();
+
+    if (!isValidSheetData(data, sheet)) {
+      console.error('Error fetching data: invalid sheet data');
+      return false;
+    }
+
+    return [...data.sheets[sheet]];
+  } catch (error) {
+    console.error('Error fetching data:', error);
+    return false;
+  }
+};
+
+const isValidSheetData = (data, sheet) =>
+  Array.isArray(data?.sheets?.[sheet]) && data.sheets[sheet].length > 0;
+
 
 // =============================================================================
 // EXPORTS
